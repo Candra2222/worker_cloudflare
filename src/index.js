@@ -322,9 +322,409 @@ function loginPage() {
 }
 
 function adminPage() {
-  return '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Admin Panel</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5}.header{background:white;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center}.header h1{color:#1877f2;font-size:24px}.logout-btn{background:#ff4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600}.container{max-width:1200px;margin:30px auto;padding:0 20px}.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px}.stat-card{background:white;padding:30px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);text-align:center}.stat-value{font-size:48px;font-weight:800;color:#1877f2}.stat-label{color:#65676b;font-weight:600;margin-top:10px}.nav-tabs{display:flex;gap:10px;margin-bottom:30px;background:white;padding:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}.nav-tab{padding:12px 24px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-weight:600;color:#65676b}.nav-tab.active{background:#1877f2;color:white}.card{background:white;padding:30px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px}.card h2{margin-bottom:20px}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;font-weight:600}input{width:100%;padding:12px;border:2px solid #e4e6eb;border-radius:8px;font-size:16px}button.action-btn{background:#1877f2;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600}.btn-danger{background:#ff4444;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}.table{width:100%;border-collapse:collapse;margin-top:20px}.table th,.table td{padding:12px;text-align:left;border-bottom:1px solid #e4e6eb}.table th{background:#f8f9fa;font-weight:600;color:#65676b}.badge{background:#e3f2fd;color:#1976d2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}.hidden{display:none}.alert{padding:12px;border-radius:8px;margin-top:10px}.alert-success{background:#e8f5e9;color:#2e7d32}.alert-error{background:#ffebee;color:#c62828}</style></head><body><div class="header"><h1>Admin Panel</h1><button class="logout-btn" onclick="logout()">Logout</button></div><div class="container"><div class="stats-grid"><div class="stat-card"><div class="stat-value" id="statLinks">0</div><div class="stat-label">Total Links</div></div><div class="stat-card"><div class="stat-value" id="statMembers">0</div><div class="stat-label">Total Members</div></div><div class="stat-card"><div class="stat-value" id="statClicks">0</div><div class="stat-label">Total Klik</div></div></div><div class="nav-tabs"><button class="nav-tab active" onclick="showSection(\'links\')">Semua Link</button><button class="nav-tab" onclick="showSection(\'members\')">Members</button><button class="nav-tab" onclick="showSection(\'domains\')">Domains</button></div><div id="section-links" class="section"><div class="card"><h2>Semua Link</h2><table class="table"><thead><tr><th>Subdomain</th><th>Judul</th><th>Member</th><th>Klik</th><th>Aksi</th></tr></thead><tbody id="linksTable"><tr><td colspan="5" style="text-align:center;color:#999">Memuat...</td></tr></tbody></table></div></div><div id="section-members" class="section hidden"><div class="card"><h2>Tambah Member Baru</h2><div class="form-group"><label>Username</label><input type="text" id="newUsername" placeholder="username"></div><div class="form-group"><label>Password</label><input type="text" id="newPassword" placeholder="password"></div><div class="form-group"><label>Nama (Opsional)</label><input type="text" id="newName" placeholder="Nama"></div><button class="action-btn" onclick="createMember()">Tambah Member</button><div id="memberAlert"></div></div><div class="card"><h2>Daftar Members</h2><table class="table"><thead><tr><th>Username</th><th>Nama</th><th>Dibuat</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="membersTable"><tr><td colspan="5" style="text-align:center;color:#999">Memuat...</td></tr></tbody></table></div></div><div id="section-domains" class="section hidden"><div class="card"><h2>Tambah Domain Baru</h2><div class="form-group"><label>Domain</label><input type="text" id="newDomain" placeholder="domain.com"></div><button class="action-btn" onclick="addDomain()">Tambah Domain</button><div id="domainAlert"></div></div><div class="card"><h2>Domain Aktif</h2><div id="domainsList" style="display:flex;flex-direction:column;gap:10px"></div></div></div></div><script>const token=localStorage.getItem("admin_token");if(!token)location.href="/";function logout(){localStorage.removeItem("admin_token");location.href="/"}function showSection(sec){document.querySelectorAll(".section").forEach(s=>s.classList.add("hidden"));document.querySelectorAll(".nav-tab").forEach(t=>t.classList.remove("active"));document.getElementById("section-"+sec).classList.remove("hidden");event.target.classList.add("active");if(sec==="links")loadLinks();if(sec==="members")loadMembers();if(sec==="domains")loadDomains()}async function loadStats(){const res=await fetch("/api/admin/stats",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();if(data.success){document.getElementById("statLinks").innerText=data.stats.totalLinks;document.getElementById("statMembers").innerText=data.stats.totalMembers;document.getElementById("statClicks").innerText=data.stats.totalClicks}}async function loadLinks(){const res=await fetch("/api/admin/links",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();const tbody=document.getElementById("linksTable");if(data.success&&data.links.length>0){tbody.innerHTML=data.links.map(l=>"<tr><td>"+l.subdomain+"."+l.domain+"</td><td>"+l.title+"</td><td>"+(l.createdBy||"-")+"</td><td>"+(l.clicks||0)+"</td><td><button class=btn-danger onclick=\"deleteLink(\'"+l.subdomain+"\')\">Hapus</button></td></tr>").join("")}else{tbody.innerHTML="<tr><td colspan=5 style=text-align:center>Belum ada link</td></tr>"}}async function loadMembers(){const res=await fetch("/api/admin/members",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();const tbody=document.getElementById("membersTable");if(data.success&&data.members.length>0){tbody.innerHTML=data.members.map(m=>"<tr><td>"+m.username+"</td><td>"+(m.name||m.username)+"</td><td>"+new Date(m.createdAt).toLocaleDateString()+"</td><td>"+(m.active!==false?"<span class=badge>Aktif</span>":"<span style=color:#999>Nonaktif</span>")+"</td><td><button class=btn-danger onclick=\"deleteMember(\'"+m.username+"\')\">Hapus</button></td></tr>").join("")}else{tbody.innerHTML="<tr><td colspan=5 style=text-align:center>Belum ada member</td></tr>"}}async function loadDomains(){const res=await fetch("/api/admin/domains",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();const list=document.getElementById("domainsList");if(data.success&&data.domains.length>0){list.innerHTML=data.domains.map(d=>"<div style=display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8f9fa;border-radius:8px><span>"+d+"</span><button class=btn-danger onclick=\"removeDomain(\'"+d+"\')\">Hapus</button></div>").join("")}else{list.innerHTML="<p style=color:#999>Belum ada domain</p>"}}async function createMember(){const u=document.getElementById("newUsername").value;const p=document.getElementById("newPassword").value;const n=document.getElementById("newName").value;if(!u||!p){alert("Username dan password wajib diisi");return}const res=await fetch("/api/admin/members/create",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({username:u,password:p,name:n})});const data=await res.json();const alertDiv=document.getElementById("memberAlert");if(data.success){alertDiv.className="alert alert-success";alertDiv.innerText="Member berhasil dibuat";document.getElementById("newUsername").value="";document.getElementById("newPassword").value="";document.getElementById("newName").value="";loadMembers();loadStats()}else{alertDiv.className="alert alert-error";alertDiv.innerText=data.error||"Gagal"}}async function deleteMember(u){if(!confirm("Yakin hapus member "+u+"? Semua linknya juga akan terhapus"))return;await fetch("/api/admin/members/delete",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({username:u})});loadMembers();loadStats()}async function addDomain(){const d=document.getElementById("newDomain").value.trim();if(!d){alert("Domain tidak boleh kosong");return}const res=await fetch("/api/admin/domains/add",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({domain:d})});const data=await res.json();const alertDiv=document.getElementById("domainAlert");if(data.success){alertDiv.className="alert alert-success";alertDiv.innerText="Domain ditambahkan";document.getElementById("newDomain").value="";loadDomains()}else{alertDiv.className="alert alert-error";alertDiv.innerText=data.error}}async function removeDomain(d){if(!confirm("Yakin hapus domain "+d+"?"))return;await fetch("/api/admin/domains/remove",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({domain:d})});loadDomains()}async function deleteLink(sub){if(!confirm("Yakin hapus link "+sub+"?"))return;await fetch("/api/admin/links/delete",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({subdomain:sub})});loadLinks();loadStats()}loadStats();loadLinks()</script></body></html>';
+  return '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Admin Panel</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;color:#1c1e21}.header{background:white;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}.header h1{color:#1877f2;font-size:24px}.logout-btn{background:#ff4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px}.container{max-width:1200px;margin:30px auto;padding:0 20px}.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px}.stat-card{background:white;padding:30px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);text-align:center}.stat-value{font-size:48px;font-weight:800;color:#1877f2}.stat-label{color:#65676b;font-weight:600;margin-top:10px}.nav-tabs{display:flex;gap:10px;margin-bottom:30px;background:white;padding:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow-x:auto}.nav-tab{padding:12px 24px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-weight:600;color:#65676b;transition:all 0.3s;white-space:nowrap}.nav-tab.active{background:#1877f2;color:white}.nav-tab:hover:not(.active){background:#f0f2f5}.card{background:white;padding:30px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px}.card h2{margin-bottom:20px;color:#1c1e21;font-size:20px}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:#1c1e21}input{width:100%;padding:12px;border:2px solid #e4e6eb;border-radius:8px;font-size:16px;transition:all 0.3s}input:focus{outline:none;border-color:#1877f2}button.action-btn{background:#1877f2;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;font-size:16px;width:100%}button.action-btn:hover{background:#166fe5}.btn-danger{background:#ff4444;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}.btn-danger:hover{background:#d32f2f}.table{width:100%;border-collapse:collapse;margin-top:20px}.table th,.table td{padding:12px;text-align:left;border-bottom:1px solid #e4e6eb}.table th{background:#f8f9fa;font-weight:600;color:#65676b;font-size:14px}.badge{background:#e3f2fd;color:#1976d2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}.badge-success{background:#e8f5e9;color:#2e7d32}.hidden{display:none !important}.alert{padding:12px 16px;border-radius:8px;margin-top:15px;font-size:14px}.alert-success{background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9}.alert-error{background:#ffebee;color:#c62828;border:1px solid #ffcdd2}.flex{display:flex;gap:10px}.mb-4{margin-bottom:20px}.domain-item{display:flex;justify-content:space-between;align-items:center;padding:15px;background:#f8f9fa;border-radius:8px;margin-bottom:10px;border:1px solid #e4e6eb}.empty-state{text-align:center;padding:40px;color:#999}.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center}.modal-content{background:white;padding:30px;border-radius:16px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-title{font-size:20px;font-weight:700}.close-btn{background:none;border:none;font-size:24px;cursor:pointer;color:#999}.close-btn:hover{color:#333}@media(max-width:768px){.container{padding:15px}.stats-grid{grid-template-columns:1fr}.nav-tabs{flex-wrap:nowrap;overflow-x:scroll}}</style></head><body>' +
+  
+  // Header dengan Logout
+  '<div class="header">' +
+  '<h1>👑 Admin Panel</h1>' +
+  '<button class="logout-btn" onclick="doLogout()">Logout</button>' +
+  '</div>' +
+  
+  '<div class="container">' +
+  
+  // Stats
+  '<div class="stats-grid">' +
+  '<div class="stat-card">' +
+  '<div class="stat-value" id="statLinks">0</div>' +
+  '<div class="stat-label">Total Links</div>' +
+  '</div>' +
+  '<div class="stat-card">' +
+  '<div class="stat-value" id="statMembers">0</div>' +
+  '<div class="stat-label">Total Members</div>' +
+  '</div>' +
+  '<div class="stat-card">' +
+  '<div class="stat-value" id="statClicks">0</div>' +
+  '<div class="stat-label">Total Klik</div>' +
+  '</div>' +
+  '</div>' +
+  
+  // Navigation Tabs
+  '<div class="nav-tabs">' +
+  '<button class="nav-tab active" onclick="switchTab(\'links\', this)">Semua Link</button>' +
+  '<button class="nav-tab" onclick="switchTab(\'members\', this)">Members</button>' +
+  '<button class="nav-tab" onclick="switchTab(\'domains\', this)">Domains</button>' +
+  '</div>' +
+  
+  // Links Section
+  '<div id="tab-links" class="tab-content">' +
+  '<div class="card">' +
+  '<h2>Semua Link</h2>' +
+  '<table class="table">' +
+  '<thead>' +
+  '<tr>' +
+  '<th>Subdomain</th>' +
+  '<th>Judul</th>' +
+  '<th>Member</th>' +
+  '<th>Klik</th>' +
+  '<th>Aksi</th>' +
+  '</tr>' +
+  '</thead>' +
+  '<tbody id="linksTable">' +
+  '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">Memuat data...</td></tr>' +
+  '</tbody>' +
+  '</table>' +
+  '</div>' +
+  '</div>' +
+  
+  // Members Section
+  '<div id="tab-members" class="tab-content hidden">' +
+  '<div class="card">' +
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+  '<h2>Daftar Members</h2>' +
+  '<button class="action-btn" style="width:auto;padding:10px 20px;font-size:14px" onclick="openModal()">+ Tambah Member</button>' +
+  '</div>' +
+  '<table class="table">' +
+  '<thead>' +
+  '<tr>' +
+  '<th>Username</th>' +
+  '<th>Nama</th>' +
+  '<th>Tanggal Dibuat</th>' +
+  '<th>Status</th>' +
+  '<th>Aksi</th>' +
+  '</tr>' +
+  '</thead>' +
+  '<tbody id="membersTable">' +
+  '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">Memuat data...</td></tr>' +
+  '</tbody>' +
+  '</table>' +
+  '</div>' +
+  '</div>' +
+  
+  // Domains Section
+  '<div id="tab-domains" class="tab-content hidden">' +
+  '<div class="card">' +
+  '<h2>Tambah Domain Baru</h2>' +
+  '<div class="form-group">' +
+  '<label>Domain (contoh: domain.com)</label>' +
+  '<input type="text" id="newDomain" placeholder="domain.com">' +
+  '</div>' +
+  '<button class="action-btn" onclick="addDomain()">Tambah Domain</button>' +
+  '<div id="domainAlert"></div>' +
+  '</div>' +
+  '<div class="card">' +
+  '<h2>Domain Aktif</h2>' +
+  '<div id="domainsList">' +
+  '<div class="empty-state">Memuat...</div>' +
+  '</div>' +
+  '</div>' +
+  '</div>' +
+  
+  '</div>' +
+  
+  // Modal Tambah Member
+  '<div id="memberModal" class="modal">' +
+  '<div class="modal-content">' +
+  '<div class="modal-header">' +
+  '<div class="modal-title">Tambah Member Baru</div>' +
+  '<button class="close-btn" onclick="closeModal()">&times;</button>' +
+  '</div>' +
+  '<div class="form-group">' +
+  '<label>Username *</label>' +
+  '<input type="text" id="modalUsername" placeholder="username">' +
+  '</div>' +
+  '<div class="form-group">' +
+  '<label>Password *</label>' +
+  '<input type="text" id="modalPassword" placeholder="password">' +
+  '</div>' +
+  '<div class="form-group">' +
+  '<label>Nama Lengkap (Opsional)</label>' +
+  '<input type="text" id="modalName" placeholder="Nama member">' +
+  '</div>' +
+  '<button class="action-btn" onclick="submitMember()">Simpan Member</button>' +
+  '<div id="modalAlert"></div>' +
+  '</div>' +
+  '</div>' +
+  
+  // JavaScript
+  '<script>' +
+  'const AUTH_TOKEN = localStorage.getItem("admin_token");' +
+  'if (!AUTH_TOKEN) {' +
+  '  window.location.href = "/";' +
+  '}' +
+  
+  // Logout Function
+  'function doLogout() {' +
+  '  console.log("Logging out...");' +
+  '  localStorage.removeItem("admin_token");' +
+  '  window.location.href = "/";' +
+  '}' +
+  
+  // Tab Switching
+  'function switchTab(tabName, btn) {' +
+  '  document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));' +
+  '  document.getElementById("tab-" + tabName).classList.remove("hidden");' +
+  '  document.querySelectorAll(".nav-tab").forEach(el => el.classList.remove("active"));' +
+  '  btn.classList.add("active");' +
+  '  if (tabName === "links") loadLinks();' +
+  '  if (tabName === "members") loadMembers();' +
+  '  if (tabName === "domains") loadDomains();' +
+  '}' +
+  
+  // Modal Functions
+  'function openModal() {' +
+  '  document.getElementById("memberModal").style.display = "flex";' +
+  '  document.getElementById("modalAlert").innerHTML = "";' +
+  '}' +
+  
+  'function closeModal() {' +
+  '  document.getElementById("memberModal").style.display = "none";' +
+  '  document.getElementById("modalUsername").value = "";' +
+  '  document.getElementById("modalPassword").value = "";' +
+  '  document.getElementById("modalName").value = "";' +
+  '}' +
+  
+  // Load Stats
+  'async function loadStats() {' +
+  '  try {' +
+  '    const res = await fetch("/api/admin/stats", {' +
+  '      headers: {"Authorization": "Bearer " + AUTH_TOKEN}' +
+  '    });' +
+  '    const data = await res.json();' +
+  '    if (data.success) {' +
+  '      document.getElementById("statLinks").innerText = data.stats.totalLinks;' +
+  '      document.getElementById("statMembers").innerText = data.stats.totalMembers;' +
+  '      document.getElementById("statClicks").innerText = data.stats.totalClicks;' +
+  '    }' +
+  '  } catch (e) {' +
+  '    console.error("Error loading stats:", e);' +
+  '  }' +
+  '}' +
+  
+  // Load Links
+  'async function loadLinks() {' +
+  '  try {' +
+  '    const res = await fetch("/api/admin/links", {' +
+  '      headers: {"Authorization": "Bearer " + AUTH_TOKEN}' +
+  '    });' +
+  '    const data = await res.json();' +
+  '    const tbody = document.getElementById("linksTable");' +
+  '    if (data.success && data.links.length > 0) {' +
+  '      tbody.innerHTML = data.links.map(link => ' +
+  '        "<tr>" +' +
+  '        "<td>" + link.subdomain + "." + link.domain + "</td>" +' +
+  '        "<td>" + link.title + "</td>" +' +
+  '        "<td>" + (link.createdBy || "-") + "</td>" +' +
+  '        "<td>" + (link.clicks || 0) + "</td>" +' +
+  '        "<td><button class=\'btn-danger\' onclick=\'deleteLink(\"" + link.subdomain + "\")\'>Hapus</button></td>" +' +
+  '        "</tr>"' +
+  '      ).join("");' +
+  '    } else {' +
+  '      tbody.innerHTML = "<tr><td colspan=5 style=\'text-align:center;padding:40px;color:#999\'>Belum ada link</td></tr>";' +
+  '    }' +
+  '  } catch (e) {' +
+  '    console.error("Error loading links:", e);' +
+  '  }' +
+  '}' +
+  
+  // Load Members
+  'async function loadMembers() {' +
+  '  try {' +
+  '    const res = await fetch("/api/admin/members", {' +
+  '      headers: {"Authorization": "Bearer " + AUTH_TOKEN}' +
+  '    });' +
+  '    const data = await res.json();' +
+  '    const tbody = document.getElementById("membersTable");' +
+  '    if (data.success && data.members.length > 0) {' +
+  '      tbody.innerHTML = data.members.map(member => ' +
+  '        "<tr>" +' +
+  '        "<td>" + member.username + "</td>" +' +
+  '        "<td>" + (member.name || member.username) + "</td>" +' +
+  '        "<td>" + new Date(member.createdAt).toLocaleDateString("id-ID") + "</td>" +' +
+  '        "<td>" + (member.active !== false ? "<span class=\'badge badge-success\'>Aktif</span>" : "<span style=\'color:#999\'>Nonaktif</span>") + "</td>" +' +
+  '        "<td><button class=\'btn-danger\' onclick=\'deleteMember(\"" + member.username + "\")\'>Hapus</button></td>" +' +
+  '        "</tr>"' +
+  '      ).join("");' +
+  '    } else {' +
+  '      tbody.innerHTML = "<tr><td colspan=5 style=\'text-align:center;padding:40px;color:#999\'>Belum ada member</td></tr>";' +
+  '    }' +
+  '  } catch (e) {' +
+  '    console.error("Error loading members:", e);' +
+  '  }' +
+  '}' +
+  
+  // Submit Member (Create)
+  'async function submitMember() {' +
+  '  const username = document.getElementById("modalUsername").value.trim();' +
+  '  const password = document.getElementById("modalPassword").value.trim();' +
+  '  const name = document.getElementById("modalName").value.trim();' +
+  '  const alertDiv = document.getElementById("modalAlert");' +
+  
+  '  if (!username || !password) {' +
+  '    alertDiv.innerHTML = "<div class=\'alert alert-error\'>Username dan password wajib diisi!</div>";' +
+  '    return;' +
+  '  }' +
+  
+  '  try {' +
+  '    const res = await fetch("/api/admin/members/create", {' +
+  '      method: "POST",' +
+  '      headers: {' +
+  '        "Content-Type": "application/json",' +
+  '        "Authorization": "Bearer " + AUTH_TOKEN' +
+  '      },' +
+  '      body: JSON.stringify({username, password, name})' +
+  '    });' +
+  
+  '    const data = await res.json();' +
+  
+  '    if (data.success) {' +
+  '      alertDiv.innerHTML = "<div class=\'alert alert-success\'>Member berhasil dibuat!</div>";' +
+  '      setTimeout(() => {' +
+  '        closeModal();' +
+  '        loadMembers();' +
+  '        loadStats();' +
+  '      }, 1500);' +
+  '    } else {' +
+  '      alertDiv.innerHTML = "<div class=\'alert alert-error\'>" + (data.error || "Gagal membuat member") + "</div>";' +
+  '    }' +
+  '  } catch (e) {' +
+  '    alertDiv.innerHTML = "<div class=\'alert alert-error\'>Terjadi kesalahan. Coba lagi.</div>";' +
+  '  }' +
+  '}' +
+  
+  // Delete Member
+  'async function deleteMember(username) {' +
+  '  if (!confirm("Yakin ingin menghapus member " + username + "? Semua link yang dibuat member ini juga akan terhapus!")) {' +
+  '    return;' +
+  '  }' +
+  
+  '  try {' +
+  '    await fetch("/api/admin/members/delete", {' +
+  '      method: "POST",' +
+  '      headers: {' +
+  '        "Content-Type": "application/json",' +
+  '        "Authorization": "Bearer " + AUTH_TOKEN' +
+  '      },' +
+  '      body: JSON.stringify({username})' +
+  '    });' +
+  '    loadMembers();' +
+  '    loadStats();' +
+  '  } catch (e) {' +
+  '    alert("Gagal menghapus member");' +
+  '  }' +
+  '}' +
+  
+  // Load Domains
+  'async function loadDomains() {' +
+  '  try {' +
+  '    const res = await fetch("/api/admin/domains", {' +
+  '      headers: {"Authorization": "Bearer " + AUTH_TOKEN}' +
+  '    });' +
+  '    const data = await res.json();' +
+  '    const list = document.getElementById("domainsList");' +
+  '    if (data.success && data.domains.length > 0) {' +
+  '      list.innerHTML = data.domains.map(domain => ' +
+  '        "<div class=\'domain-item\'>" +' +
+  '        "<span>" + domain + "</span>" +' +
+  '        "<button class=\'btn-danger\' onclick=\'removeDomain(\"" + domain + "\")\'>Hapus</button>" +' +
+  '        "</div>"' +
+  '      ).join("");' +
+  '    } else {' +
+  '      list.innerHTML = "<div class=\'empty-state\'>Belum ada domain</div>";' +
+  '    }' +
+  '  } catch (e) {' +
+  '    console.error("Error loading domains:", e);' +
+  '  }' +
+  '}' +
+  
+  // Add Domain
+  'async function addDomain() {' +
+  '  const domain = document.getElementById("newDomain").value.trim();' +
+  '  const alertDiv = document.getElementById("domainAlert");' +
+  
+  '  if (!domain) {' +
+  '    alertDiv.innerHTML = "<div class=\'alert alert-error\'>Domain tidak boleh kosong</div>";' +
+  '    return;' +
+  '  }' +
+  
+  '  try {' +
+  '    const res = await fetch("/api/admin/domains/add", {' +
+  '      method: "POST",' +
+  '      headers: {' +
+  '        "Content-Type": "application/json",' +
+  '        "Authorization": "Bearer " + AUTH_TOKEN' +
+  '      },' +
+  '      body: JSON.stringify({domain})' +
+  '    });' +
+  
+  '    const data = await res.json();' +
+  
+  '    if (data.success) {' +
+  '      alertDiv.innerHTML = "<div class=\'alert alert-success\'>Domain berhasil ditambahkan!</div>";' +
+  '      document.getElementById("newDomain").value = "";' +
+  '      loadDomains();' +
+  '    } else {' +
+  '      alertDiv.innerHTML = "<div class=\'alert alert-error\'>" + (data.error || "Gagal menambah domain") + "</div>";' +
+  '    }' +
+  '  } catch (e) {' +
+  '    alertDiv.innerHTML = "<div class=\'alert alert-error\'>Terjadi kesalahan</div>";' +
+  '  }' +
+  '}' +
+  
+  // Remove Domain
+  'async function removeDomain(domain) {' +
+  '  if (!confirm("Yakin ingin menghapus domain " + domain + "?")) return;' +
+  
+  '  try {' +
+  '    await fetch("/api/admin/domains/remove", {' +
+  '      method: "POST",' +
+  '      headers: {' +
+  '        "Content-Type": "application/json",' +
+  '        "Authorization": "Bearer " + AUTH_TOKEN' +
+  '      },' +
+  '      body: JSON.stringify({domain})' +
+  '    });' +
+  '    loadDomains();' +
+  '  } catch (e) {' +
+  '    alert("Gagal menghapus domain");' +
+  '  }' +
+  '}' +
+  
+  // Delete Link
+  'async function deleteLink(subdomain) {' +
+  '  if (!confirm("Yakin ingin menghapus link " + subdomain + "?")) return;' +
+  
+  '  try {' +
+  '    await fetch("/api/admin/links/delete", {' +
+  '      method: "POST",' +
+  '      headers: {' +
+  '        "Content-Type": "application/json",' +
+  '        "Authorization": "Bearer " + AUTH_TOKEN' +
+  '      },' +
+  '      body: JSON.stringify({subdomain})' +
+  '    });' +
+  '    loadLinks();' +
+  '    loadStats();' +
+  '  } catch (e) {' +
+  '    alert("Gagal menghapus link");' +
+  '  }' +
+  '}' +
+  
+  // Close modal when clicking outside
+  'window.onclick = function(event) {' +
+  '  const modal = document.getElementById("memberModal");' +
+  '  if (event.target == modal) {' +
+  '    closeModal();' +
+  '  }' +
+  '}' +
+  
+  // Initial Load
+  'loadStats();' +
+  'loadLinks();' +
+  '</script>' +
+  
+  '</body></html>';
 }
 
 function memberPage() {
   return '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Member Dashboard</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5}.header{background:white;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center}.header h1{color:#42b72a;font-size:24px}.logout-btn{background:#ff4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600}.container{max-width:800px;margin:30px auto;padding:0 20px}.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:30px}.stat-card{background:white;padding:25px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);text-align:center}.stat-value{font-size:36px;font-weight:800;color:#42b72a}.stat-label{color:#65676b;font-weight:600;margin-top:8px}.card{background:white;padding:30px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px}.card h2{margin-bottom:20px}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;font-weight:600}input,select,textarea{width:100%;padding:12px;border:2px solid #e4e6eb;border-radius:8px;font-size:16px}textarea{min-height:80px}button.action-btn{background:#42b72a;color:white;border:none;padding:14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:16px;width:100%}.result{display:none;margin-top:20px;padding:20px;background:#e8f5e9;border-radius:12px;border-left:4px solid #42b72a}.link-box{background:white;padding:12px;border:2px dashed #42b72a;border-radius:8px;margin:10px 0;font-family:monospace;word-break:break-all;color:#2e7d32;font-weight:600}.btn-copy{background:#1877f2;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-top:10px}.links-list{margin-top:20px}.link-item{background:white;border:1px solid #e4e6eb;border-radius:12px;padding:16px;margin-bottom:12px}.link-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.link-title{font-weight:700}.badge{background:#e3f2fd;color:#1976d2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}.welcome-text{color:#65676b;margin-bottom:20px}</style></head><body><div class="header"><h1>Member Panel</h1><button class="logout-btn" onclick="logout()">Logout</button></div><div class="container"><div class="welcome-text">Selamat datang, <strong id="username">Member</strong></div><div class="stats-grid"><div class="stat-card"><div class="stat-value" id="myLinks">0</div><div class="stat-label">Link Saya</div></div><div class="stat-card"><div class="stat-value" id="myClicks">0</div><div class="stat-label">Total Klik</div></div></div><div class="card"><h2>Buat Link Baru</h2><div class="form-group"><label>Pilih Domain</label><select id="domainSelect"></select></div><div class="form-group"><label>Judul FB</label><input type="text" id="title" placeholder="Contoh: Diskon 50%"></div><div class="form-group"><label>Deskripsi</label><textarea id="desc" placeholder="Deskripsi..."></textarea></div><div class="form-group"><label>URL Gambar</label><input type="url" id="img" placeholder="https://site.com/img.jpg"></div><div class="form-group"><label>URL Tujuan</label><input type="url" id="target" placeholder="https://offer.com/lp"></div><div class="form-group"><label>Kode Custom (Opsional)</label><input type="text" id="code" placeholder="PROMO50"></div><button class="action-btn" onclick="createLink()">Generate Link</button><div id="result" class="result"><strong style="color:#2e7d32">Link Berhasil!</strong><div class="link-box" id="shortUrl"></div><button class="btn-copy" onclick="copyLink()">Copy Link</button></div></div><div class="card"><h2>Link Saya</h2><div id="linksList" class="links-list"><p style="color:#999;text-align:center;padding:40px">Memuat...</p></div></div></div><script>const token=localStorage.getItem("member_token");const username=localStorage.getItem("member_user");if(!token||!username)location.href="/";document.getElementById("username").innerText=username;async function loadStats(){const res=await fetch("/api/member/stats",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();if(data.success){document.getElementById("myLinks").innerText=data.stats.totalLinks;document.getElementById("myClicks").innerText=data.stats.totalClicks}}async function loadDomains(){const res=await fetch("/api/member/domains",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();if(data.success){document.getElementById("domainSelect").innerHTML=data.domains.map(d=>"<option value="+d+">"+d+"</option>").join("")}}async function loadMyLinks(){const res=await fetch("/api/member/links",{headers:{"Authorization":"Bearer "+token}});const data=await res.json();const container=document.getElementById("linksList");if(data.success&&data.links.length>0){container.innerHTML=data.links.map(l=>"<div class=link-item><div class=link-header><div class=link-title>"+l.title+"</div><span class=badge>"+(l.clicks||0)+" klik</span></div><div style=font-size:13px;color:#999>"+l.subdomain+"."+l.domain+"</div></div>").join("")}else{container.innerHTML="<p style=color:#999;text-align:center;padding:20px>Anda belum memiliki link</p>"}}async function createLink(){const btn=document.querySelector(".action-btn");btn.innerText="Generating...";const body={domain:document.getElementById("domainSelect").value,title:document.getElementById("title").value,description:document.getElementById("desc").value,imageUrl:document.getElementById("img").value,targetUrl:document.getElementById("target").value,customCode:document.getElementById("code").value};const res=await fetch("/api/member/links/create",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});const data=await res.json();if(data.success){document.getElementById("shortUrl").innerText=data.data.shortUrl;document.getElementById("result").style.display="block";loadMyLinks();loadStats()}else{alert(data.error||"Gagal membuat link")}btn.innerText="Generate Link"}function copyLink(){navigator.clipboard.writeText(document.getElementById("shortUrl").innerText).then(()=>alert("Link dicopy!"))}function logout(){localStorage.removeItem("member_token");localStorage.removeItem("member_user");location.href="/"}loadStats();loadDomains();loadMyLinks()</script></body></html>';
-    }
+                                                   }
