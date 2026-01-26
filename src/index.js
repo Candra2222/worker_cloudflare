@@ -119,11 +119,11 @@ function json(data, status) {
 }
 
 function getOgHTML(data) {
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + data.title + '</title><meta property="og:title" content="' + data.title + '"><meta property="og:description" content="' + data.description + '"><meta property="og:image" content="' + data.imageUrl + '"><meta http-equiv="refresh" content="2;url=' + data.targetUrl + '"></head><body style="font-family:Arial,sans-serif;background:#f5f5f5;display:flex;justify-content:center;align-items:center;height:100vh;margin:0"><div style="background:white;padding:30px;border-radius:8px;text-align:center;max-width:400px"><img src="' + data.imageUrl + '" style="width:100%;border-radius:4px;margin-bottom:15px" onerror="this.style.display=\'none\'"><h2>' + data.title + '</h2><p>' + data.description + '</p><p>Redirecting...</p></div></body></html>';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + data.title + '</title><meta property="og:title" content="' + data.title + '"><meta property="og:description" content="' + data.description + '"><meta property="og:image" content="' + data.imageUrl + '"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:type" content="website"><meta http-equiv="refresh" content="2;url=' + data.targetUrl + '"></head><body style="font-family:Arial,sans-serif;background:#f5f5f5;display:flex;justify-content:center;align-items:center;height:100vh;margin:0"><div style="background:white;padding:30px;border-radius:8px;text-align:center;max-width:400px"><img src="' + data.imageUrl + '" style="width:100%;border-radius:4px;margin-bottom:15px" onerror="this.style.display=\'none\'"><h2>' + data.title + '</h2><p>' + data.description + '</p><p>Redirecting...</p></div></body></html>';
 }
 
 /**
- * DASHBOARD HTML - Versi sederhana tanpa syntax error
+ * DASHBOARD HTML - Dengan Preview Facebook Real-time
  */
 function getDashboardHTML(domains) {
   const domainOptions = domains.map(d => '<option value="' + d + '">' + d + '</option>').join('');
@@ -135,7 +135,7 @@ function getDashboardHTML(domains) {
 '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
 '<title>Link Generator</title>' +
 '<style>' +
-'body{font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;max-width:600px;margin:0 auto}' +
+'body{font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;max-width:800px;margin:0 auto}' +
 '.card{background:white;padding:20px;border-radius:8px;margin-bottom:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}' +
 'h1{color:#1877f2;text-align:center}' +
 'input,textarea,select{width:100%;padding:10px;margin:5px 0;border:1px solid #ddd;border-radius:4px;box-sizing:border-box}' +
@@ -149,6 +149,19 @@ function getDashboardHTML(domains) {
 '.delete-btn{background:#ff4444;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;float:right}' +
 '.login-box{max-width:400px;margin:100px auto}' +
 '#dashboard{display:none}' +
+'/* Preview Facebook Styles */' +
+'.fb-preview-container{margin-top:20px;padding:15px;background:#f5f6f7;border-radius:8px;border:1px solid #dddfe2}' +
+'.fb-preview-header{font-size:12px;color:#606770;margin-bottom:8px;font-weight:600;text-transform:uppercase}' +
+'.fb-preview-card{background:white;border:1px solid #dadde1;border-radius:0;max-width:500px;cursor:pointer;transition:background 0.2s}' +
+'.fb-preview-card:hover{background:#f5f6f7}' +
+'.fb-preview-image{width:100%;height:261px;background:#f0f2f5;background-size:cover;background-position:center;border-bottom:1px solid #dadde1;display:flex;align-items:center;justify-content:center;color:#65676b;font-size:14px}' +
+'.fb-preview-content{padding:10px 12px}' +
+'.fb-preview-domain{font-size:12px;color:#606770;text-transform:uppercase;line-height:16px;margin-bottom:2px}' +
+'.fb-preview-title{font-size:16px;color:#1d2129;font-weight:600;line-height:20px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}' +
+'.fb-preview-desc{font-size:14px;color:#606770;line-height:20px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;margin-top:4px}' +
+'.preview-label{display:block;margin-bottom:5px;color:#444;font-weight:600;font-size:14px}' +
+'input:focus,textarea:focus{border-color:#1877f2;outline:none;box-shadow:0 0 0 2px rgba(24,119,242,0.2)}' +
+'.helper-text{font-size:12px;color:#666;margin-top:2px;margin-bottom:8px}' +
 '</style>' +
 '</head>' +
 '<body>' +
@@ -171,25 +184,41 @@ function getDashboardHTML(domains) {
 '<h3>Buat Link Baru</h3>' +
 
 (domains.length > 1 ? 
-'<label>Pilih Domain</label><select id="domain">' + domainOptions + '</select>' : 
+'<label class="preview-label">Pilih Domain</label><select id="domain">' + domainOptions + '</select>' : 
 '<input type="hidden" id="domain" value="' + domains[0] + '">') +
 
-'<label>Judul FB</label>' +
-'<input type="text" id="title" placeholder="Contoh: Diskon 50%">' +
+'<label class="preview-label">Judul FB (og:title)</label>' +
+'<input type="text" id="title" placeholder="Contoh: Diskon 50% Produk Original" oninput="updatePreview()">' +
+'<div class="helper-text">Maksimal 60-80 karakter untuk tampilan optimal di Facebook</div>' +
 
-'<label>Deskripsi</label>' +
-'<textarea id="desc" placeholder="Deskripsi singkat..."></textarea>' +
+'<label class="preview-label">Deskripsi (og:description)</label>' +
+'<textarea id="desc" placeholder="Deskripsi singkat yang menarik..." oninput="updatePreview()"></textarea>' +
+'<div class="helper-text">Ringkasan konten yang akan muncul di bawah judul</div>' +
 
-'<label>URL Gambar</label>' +
-'<input type="url" id="img" placeholder="https://site.com/img.jpg">' +
+'<label class="preview-label">URL Gambar (og:image)</label>' +
+'<input type="url" id="img" placeholder="https://site.com/gambar.jpg " oninput="updatePreview()">' +
+'<div class="helper-text">Ukuran ideal: 1200 x 630 pixel (format JPG/PNG)</div>' +
 
-'<label>URL Tujuan</label>' +
-'<input type="url" id="target" placeholder="https://offer.com/lp">' +
+'<label class="preview-label">URL Tujuan (Redirect)</label>' +
+'<input type="url" id="target" placeholder="https://offer.com/lp ">' +
 
-'<label>Kode Custom (Opsional)</label>' +
+'<label class="preview-label">Kode Custom (Opsional)</label>' +
 '<input type="text" id="code" placeholder="PROMO50">' +
 
-'<button onclick="createLink()">Generate Link</button>' +
+// Preview Facebook Section
+'<div class="fb-preview-container">' +
+'<div class="fb-preview-header">Preview Facebook</div>' +
+'<div class="fb-preview-card">' +
+'<div id="preview-image" class="fb-preview-image">Preview Gambar</div>' +
+'<div class="fb-preview-content">' +
+'<div id="preview-domain" class="fb-preview-domain">' + domains[0] + '</div>' +
+'<div id="preview-title" class="fb-preview-title">Judul akan muncul di sini...</div>' +
+'<div id="preview-desc" class="fb-preview-desc">Deskripsi akan muncul di sini...</div>' +
+'</div>' +
+'</div>' +
+'</div>' +
+
+'<button onclick="createLink()" style="margin-top:20px">Generate Link</button>' +
 
 // Result
 '<div id="res" class="result">' +
@@ -207,7 +236,7 @@ function getDashboardHTML(domains) {
 
 '</div>' +
 
-// JavaScript - Sangat sederhana, tidak pakai template string atau backtick
+// JavaScript
 '<script>' +
 // Check login status
 'var key=localStorage.getItem("k");' +
@@ -215,6 +244,7 @@ function getDashboardHTML(domains) {
 '  document.getElementById("login").style.display="none";' +
 '  document.getElementById("dashboard").style.display="block";' +
 '  loadList();' +
+'  updatePreview();' +
 '}' +
 
 // Login function
@@ -222,6 +252,27 @@ function getDashboardHTML(domains) {
 '  var p=document.getElementById("pwd").value;' +
 '  localStorage.setItem("k",p);' +
 '  location.reload();' +
+'}' +
+
+// Update Preview Real-time
+'function updatePreview(){' +
+'  var title=document.getElementById("title").value||"Judul akan muncul di sini...";' +
+'  var desc=document.getElementById("desc").value||"Deskripsi akan muncul di sini...";' +
+'  var img=document.getElementById("img").value;' +
+'  var domain=document.getElementById("domain").value||"' + domains[0] + '";' +
+'  ' +
+'  document.getElementById("preview-title").innerText=title;' +
+'  document.getElementById("preview-desc").innerText=desc;' +
+'  document.getElementById("preview-domain").innerText=domain;' +
+'  ' +
+'  var imgDiv=document.getElementById("preview-image");' +
+'  if(img){' +
+'    imgDiv.style.backgroundImage="url("+img+")";' +
+'    imgDiv.innerText="";' +
+'  }else{' +
+'    imgDiv.style.backgroundImage="";' +
+'    imgDiv.innerText="Preview Gambar (1200x630)";' +
+'  }' +
 '}' +
 
 // Create link
@@ -252,6 +303,7 @@ function getDashboardHTML(domains) {
 '      document.getElementById("img").value="";' +
 '      document.getElementById("target").value="";' +
 '      document.getElementById("code").value="";' +
+'      updatePreview();' +
 '    }else{' +
 '      alert("Error: "+d.error);' +
 '    }' +
@@ -300,4 +352,4 @@ function getDashboardHTML(domains) {
 
 '</body>' +
 '</html>';
-}
+      }
