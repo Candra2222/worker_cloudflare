@@ -9,5 +9,5 @@ id = "1b74ffb788934a518e3561bfd42bd8a6"
 
 # Environment Variables
 [vars]
-DOMAIN = "domainanda.com"
+DOMAIN = "domainanda.com,domainanda2.com"
 ADMIN_KEY = "admin"
