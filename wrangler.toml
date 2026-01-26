@@ -5,7 +5,7 @@ compatibility_date = "2026-01-26"
 # KV Binding - GANTI ID INI
 [[kv_namespaces]]
 binding = "LINKS_DB"
-id = "GANTI_DENGAN_KV_ID_ANDA"
+id = "5bff0d3008a9d2d68bac43bb5906c768"
 
 # Environment Variables
 [vars]
