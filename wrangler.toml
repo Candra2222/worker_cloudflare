@@ -1,4 +1,4 @@
-name = "tools-generate"
+name = "tools-generate-link"
 main = "src/index.js"
 compatibility_date = "2026-01-26"
 
@@ -10,4 +10,4 @@ id = "5bff0d3008a9d2d68bac43bb5906c768"
 # Environment Variables
 [vars]
 DOMAIN = "domainanda.com"
-ADMIN_KEY = "password_anda_123"
+ADMIN_KEY = "admin123"
