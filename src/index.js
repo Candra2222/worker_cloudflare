@@ -66,27 +66,29 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // Deteksi Crawler Facebook & Sosmed (Tambahkan WhatsApp, Twitter, LinkedIn)
-  const isBot = /facebookexternalhit|facebot|facebook|fban|messenger|whatsapp|twitterbot|linkedinbot|telegrambot/i.test(ua);
+  // PERBAIKAN: Bedakan antara Facebook Crawler vs Facebook App Browser
+  // facebookexternalhit = Crawler untuk preview (kasih OG HTML)
+  // FBAN/FBAV/Messenger/Instagram = In-App Browser (kasih Redirect dengan fallback)
+  const isFacebookCrawler = /facebookexternalhit|facebot/i.test(ua);
+  const isInAppBrowser = /FBAN|FBAV|Instagram|Messenger|WhatsApp|Twitter|LinkedIn/i.test(ua);
+  const isOtherBot = /bot|crawler|spider/i.test(ua) && !isInAppBrowser;
 
   ctx.waitUntil(updateStats(env, sub));
 
-  if (isBot) {
-    // Memberikan Meta Tag OG lengkap agar lolos blokir 403 Facebook
-    // TAMBAHAN: Header X-Robots-Tag dan Vary untuk menghindari masalah cache
+  // Hanya beri OG HTML jika benar-benar crawler (bukan in-app browser)
+  if (isFacebookCrawler || isOtherBot) {
     return new Response(getOgHTML(data, sub), {
       status: 200,
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=3600',
         'X-Robots-Tag': 'noindex, nofollow',
-        'Vary': 'User-Agent',
-        'X-Frame-Options': 'DENY'
+        'Vary': 'User-Agent'
       }
     });
   }
 
-  // User asli diarahkan ke target URL menggunakan HTTPS
+  // Untuk user nyata (termasuk Facebook/Instagram In-App Browser), kasih redirect dengan fallback
   return new Response(getRedirectHTML(data.targetUrl), {
     headers: { 
       'Content-Type': 'text/html; charset=utf-8',
@@ -159,7 +161,6 @@ async function updateStats(env, sub) {
       await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(obj));
     }
   } catch (e) {
-    // Silent fail untuk stats agar tidak mengganggu user
     console.error('Stats update failed:', e);
   }
 }
@@ -167,9 +168,38 @@ async function updateStats(env, sub) {
 // --- TEMPLATES ---
 
 function getRedirectHTML(url) {
-  // Validasi URL untuk mencegah XSS
-  const cleanUrl = url.replace(/"/g, '&quot;');
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${cleanUrl}"><script>window.location.replace("${cleanUrl}")</script></head><body>Redirecting...</body></html>`;
+  // PERBAIKAN: Tambahkan fallback link dan multiple redirect methods untuk Facebook In-App Browser
+  const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0;url=${cleanUrl}">
+    <title>Redirecting...</title>
+    <script>
+        // Multiple redirect methods untuk kompatibilitas Facebook Browser
+        window.location.href = "${cleanUrl}";
+        setTimeout(function() {
+            window.location.replace("${cleanUrl}");
+        }, 100);
+    </script>
+    <style>
+        body{font-family:Arial,sans-serif;text-align:center;padding:50px 20px;background:#f0f2f5}
+        .container{max-width:400px;margin:0 auto;background:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+        .btn{display:inline-block;margin-top:20px;padding:12px 24px;background:#1877f2;color:white;text-decoration:none;border-radius:6px;font-weight:bold}
+        .loading{color:#666;margin:20px 0}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading">Sedang mengalihkan...</div>
+        <p>Jika tidak dialihkan otomatis, klik tombol di bawah:</p>
+        <a href="${cleanUrl}" class="btn">Lanjutkan ke Link</a>
+        <p style="font-size:12px;color:#999;margin-top:20px;word-break:break-all">${cleanUrl}</p>
+    </div>
+</body>
+</html>`;
 }
 
 function getOgHTML(d, sub) {
