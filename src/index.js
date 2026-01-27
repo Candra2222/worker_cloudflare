@@ -10,9 +10,14 @@ export default {
 
       // --- 1. ROUTE ROBOTS.TXT (Penting agar Facebook tidak memblokir) ---
       if (url.pathname === '/robots.txt') {
-        return new Response('User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /', {
+        return new Response('User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /\n\nUser-agent: Facebot\nAllow: /', {
           headers: { 'Content-Type': 'text/plain' }
         });
+      }
+
+      // --- 1b. ROUTE FAVICON (Hindari error log yang tidak perlu) ---
+      if (url.pathname === '/favicon.ico') {
+        return new Response('', { status: 204 });
       }
 
       // --- 2. LOGIKA REDIRECT SUBDOMAIN (Akses Link) ---
@@ -61,93 +66,143 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // Deteksi Crawler Facebook & Sosmed
-  const isBot = /facebookexternalhit|facebot|facebook|fban|messenger|whatsapp|twitterbot/i.test(ua);
+  // Deteksi Crawler Facebook & Sosmed (Tambahkan WhatsApp, Twitter, LinkedIn)
+  const isBot = /facebookexternalhit|facebot|facebook|fban|messenger|whatsapp|twitterbot|linkedinbot|telegrambot/i.test(ua);
 
   ctx.waitUntil(updateStats(env, sub));
 
   if (isBot) {
     // Memberikan Meta Tag OG lengkap agar lolos blokir 403 Facebook
+    // TAMBAHAN: Header X-Robots-Tag dan Vary untuk menghindari masalah cache
     return new Response(getOgHTML(data, sub), {
+      status: 200,
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'public, max-age=3600',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Vary': 'User-Agent',
+        'X-Frame-Options': 'DENY'
       }
     });
   }
 
   // User asli diarahkan ke target URL menggunakan HTTPS
   return new Response(getRedirectHTML(data.targetUrl), {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    headers: { 
+      'Content-Type': 'text/html; charset=utf-8',
+      'Referrer-Policy': 'no-referrer-when-downgrade'
+    }
   });
 }
 
 async function handleCreate(req, env) {
-  const body = await req.json();
-  const sub = body.customCode ? body.customCode.toLowerCase().trim() : Math.random().toString(36).substring(2, 8);
+  try {
+    const body = await req.json();
+    const sub = body.customCode ? body.customCode.toLowerCase().trim() : Math.random().toString(36).substring(2, 8);
 
-  if (await env.LINKS_DB.get(`link:${sub}`)) {
-    return json({ error: 'Subdomain sudah ada' }, 409);
+    if (!body.targetUrl) {
+      return json({ error: 'URL Tujuan wajib diisi' }, 400);
+    }
+
+    if (await env.LINKS_DB.get(`link:${sub}`)) {
+      return json({ error: 'Subdomain sudah ada' }, 409);
+    }
+
+    const data = {
+      subdomain: sub,
+      domain: body.domain,
+      title: body.title || 'Untitled',
+      description: body.description || '',
+      imageUrl: body.imageUrl || '',
+      targetUrl: body.targetUrl,
+      clicks: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(data));
+    return json({ success: true, url: `https://${sub}.${body.domain}` });
+  } catch (err) {
+    return json({ error: err.message }, 500);
   }
-
-  const data = {
-    subdomain: sub,
-    domain: body.domain,
-    title: body.title,
-    description: body.description || '',
-    imageUrl: body.imageUrl || '',
-    targetUrl: body.targetUrl,
-    clicks: 0,
-    createdAt: new Date().toISOString()
-  };
-
-  await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(data));
-  return json({ success: true, url: `https://${sub}.${body.domain}` });
 }
 
 async function handleList(env) {
-  const list = await env.LINKS_DB.list({ prefix: 'link:' });
-  const links = [];
-  for (const key of list.keys) {
-    const val = await env.LINKS_DB.get(key.name);
-    if (val) links.push(JSON.parse(val));
+  try {
+    const list = await env.LINKS_DB.list({ prefix: 'link:' });
+    const links = [];
+    for (const key of list.keys) {
+      const val = await env.LINKS_DB.get(key.name);
+      if (val) links.push(JSON.parse(val));
+    }
+    links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return json({ success: true, data: links });
+  } catch (err) {
+    return json({ error: err.message }, 500);
   }
-  links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  return json({ success: true, data: links });
 }
 
 async function handleDelete(env, sub) {
-  await env.LINKS_DB.delete(`link:${sub}`);
-  return json({ success: true });
+  try {
+    await env.LINKS_DB.delete(`link:${sub}`);
+    return json({ success: true });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
 }
 
 async function updateStats(env, sub) {
-  const raw = await env.LINKS_DB.get(`link:${sub}`);
-  if (raw) {
-    const obj = JSON.parse(raw);
-    obj.clicks = (obj.clicks || 0) + 1;
-    await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(obj));
+  try {
+    const raw = await env.LINKS_DB.get(`link:${sub}`);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      obj.clicks = (obj.clicks || 0) + 1;
+      await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(obj));
+    }
+  } catch (e) {
+    // Silent fail untuk stats agar tidak mengganggu user
+    console.error('Stats update failed:', e);
   }
 }
 
 // --- TEMPLATES ---
 
 function getRedirectHTML(url) {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${url}"><script>window.location.replace("${url}")</script></head><body>Redirecting...</body></html>`;
+  // Validasi URL untuk mencegah XSS
+  const cleanUrl = url.replace(/"/g, '&quot;');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${cleanUrl}"><script>window.location.replace("${cleanUrl}")</script></head><body>Redirecting...</body></html>`;
 }
 
 function getOgHTML(d, sub) {
   const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video';
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>${d.title}</title>
-    <meta property="og:type" content="article">
-    <meta property="og:title" content="${d.title}">
-    <meta property="og:description" content="${d.description}">
+  const title = (d.title || '').replace(/"/g, '&quot;');
+  const desc = (d.description || '').replace(/"/g, '&quot;');
+  const domain = d.domain || '';
+  
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${desc}">
     <meta property="og:image" content="${img}">
-    <meta property="og:url" content="https://${sub}.${d.domain}/">
+    <meta property="og:url" content="https://${sub}.${domain}/">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta name="twitter:card" content="summary_large_image"></head><body></body></html>`;
+    <meta property="og:site_name" content="${domain}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${desc}">
+    <meta name="twitter:image" content="${img}">
+</head>
+<body>
+    <h1>${title}</h1>
+    <p>${desc}</p>
+    <img src="${img}" alt="${title}" style="max-width:100%">
+</body>
+</html>`;
 }
 
 function getDashboardHTML(domains) {
@@ -226,14 +281,15 @@ function getDashboardHTML(domains) {
       alert('Berhasil! Link tersalin otomatis:\\n' + data.url);
       load();
     } else {
-      alert('Gagal! Password salah atau subdomain sudah ada.');
+      const err = await res.json();
+      alert('Gagal: ' + (err.error || 'Password salah atau subdomain sudah ada'));
       if(res.status === 401) { localStorage.removeItem('k'); location.reload(); }
     }
     b.innerText = 'Generate & Salin Link';
   }
   async function load(){
     const res = await fetch('/api/list', {headers: {'Authorization': 'Bearer '+k}});
-    if(res.status === 401) return;
+    if(res.status === 401) { localStorage.removeItem('k'); location.reload(); return; }
     const d = await res.json();
     if(d.success){
       document.getElementById('list').innerHTML = d.data.map(i => \`
@@ -255,12 +311,16 @@ function getDashboardHTML(domains) {
     }
   }
   function copy(t){
-    const el = document.createElement('textarea');
-    el.value = t;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(t);
+    } else {
+      const el = document.createElement('textarea');
+      el.value = t;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
   }
 </script>
 </body></html>`;
