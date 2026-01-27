@@ -307,13 +307,14 @@ function getDashboardHTML(domains) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manager Link Pro</title>
+<title>Login Generate - Dashboard</title>
 <style>
   :root{
     --primary:#1877f2;
     --primary-dark:#166fe5;
     --danger:#f02849;
     --success:#42b72a;
+    --warning:#f7b928;
     --bg:#f0f2f5;
     --card-bg:#fff;
     --text:#1c1e21;
@@ -327,7 +328,6 @@ function getDashboardHTML(domains) {
   *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   body{background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
   
-  /* LAYOUT CONTAINER */
   .app-container{max-width:1400px;margin:0 auto;display:flex;min-height:100vh}
   
   /* SIDEBAR - Desktop only */
@@ -343,12 +343,13 @@ function getDashboardHTML(domains) {
     display:none;
   }
   .sidebar-logo{
-    font-size:24px;
+    font-size:22px;
     font-weight:800;
     color:var(--primary);
     margin-bottom:32px;
     padding:0 8px;
-    letter-spacing:-0.5px
+    letter-spacing:-0.5px;
+    line-height:1.2
   }
   .nav-item{
     display:flex;
@@ -365,7 +366,6 @@ function getDashboardHTML(domains) {
     cursor:pointer;
   }
   .nav-item:hover,.nav-item.active{background:var(--bg);color:var(--primary)}
-  .nav-item svg{width:20px;height:20px}
   .sidebar-footer{
     position:absolute;
     bottom:24px;
@@ -470,6 +470,12 @@ function getDashboardHTML(domains) {
   .btn-primary{background:var(--primary);color:#fff}
   .btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
   .btn-primary:active{transform:translateY(0)}
+  .btn-secondary{
+    background:#e4e6eb;
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-secondary:hover{background:var(--border)}
   .btn-success{background:var(--success);color:#fff}
   .btn-danger{background:var(--danger);color:#fff}
   .btn-sm{padding:8px 16px;font-size:13px}
@@ -480,6 +486,22 @@ function getDashboardHTML(domains) {
     padding:8px 16px;
     font-size:13px;
     width:auto;
+  }
+  
+  /* NAV BUTTONS - TAMBAHAN */
+  .nav-buttons{
+    display:flex;
+    gap:12px;
+    margin-top:20px;
+    padding-top:20px;
+    border-top:1px solid var(--border);
+  }
+  @media(min-width:1024px){
+    .nav-buttons{flex-direction:row}
+    .nav-buttons .btn{width:auto;flex:1}
+  }
+  @media(max-width:1023px){
+    .nav-buttons{flex-direction:column}
   }
   
   /* OFFER BADGE */
@@ -581,6 +603,7 @@ function getDashboardHTML(domains) {
     font-weight:800;
     color:var(--primary);
     margin-bottom:8px;
+    letter-spacing:-1px
   }
   .login-subtitle{color:var(--text-secondary);margin-bottom:32px;font-size:15px}
   
@@ -634,7 +657,7 @@ function getDashboardHTML(domains) {
 <!-- LOGIN VIEW -->
 <div id="loginView" class="login-container">
   <div class="login-card">
-    <div class="login-logo">Link Manager</div>
+    <div class="login-logo">Login Generate</div>
     <div class="login-subtitle">Tools by Sesepuh</div>
     <div class="form-group">
       <input type="password" id="pass" placeholder="Masukkan Password Admin" onkeypress="if(event.key==='Enter')doLogin()">
@@ -647,7 +670,7 @@ function getDashboardHTML(domains) {
 <div id="appView" class="app-container hidden">
   <!-- Sidebar Desktop -->
   <nav class="sidebar">
-    <div class="sidebar-logo">Link Manager</div>
+    <div class="sidebar-logo">Login Generate</div>
     <a class="nav-item active" onclick="showSection('create')">
       <span>Buat Link</span>
     </a>
@@ -664,7 +687,7 @@ function getDashboardHTML(domains) {
   <main class="main-content">
     <!-- Mobile Header -->
     <header class="mobile-header">
-      <span class="mobile-title">Link Manager</span>
+      <span class="mobile-title">Login Generate</span>
       <button class="btn btn-logout btn-sm" onclick="doLogout()">Logout</button>
     </header>
 
@@ -718,6 +741,13 @@ function getDashboardHTML(domains) {
         </div>
 
         <button class="btn btn-primary btn-full" onclick="create()" id="btn">Generate & Salin Link</button>
+        
+        <!-- TOMBOL LIHAT RIWAYAT TAMBAHAN -->
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" onclick="showSection('list')">
+            Lihat Riwayat Link
+          </button>
+        </div>
       </div>
     </section>
 
@@ -729,8 +759,16 @@ function getDashboardHTML(domains) {
             Riwayat Link
             <div class="card-subtitle">Semua link yang telah dibuat</div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="showSection('create')">+ Baru</button>
+          <button class="btn btn-primary btn-sm" onclick="showSection('create')">+ Buat Baru</button>
         </div>
+        
+        <!-- TOMBOL KEMBALI TAMBAHAN -->
+        <div style="margin-bottom:20px;">
+          <button class="btn btn-secondary btn-sm" onclick="showSection('create')" style="width:auto">
+            ← Kembali ke Buat Link
+          </button>
+        </div>
+        
         <div id="linksContainer" class="links-grid">
           <div class="text-center mt-2" style="color:var(--text-secondary)">Memuat data...</div>
         </div>
@@ -909,7 +947,6 @@ function copyToClipboard(text){
   }
 }
 
-// Mobile viewport height fix
 window.addEventListener('resize',()=>{
   document.documentElement.style.setProperty('--vh',window.innerHeight*0.01+'px');
 });
