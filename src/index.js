@@ -4,30 +4,29 @@ export default {
       const url = new URL(request.url);
       const hostname = url.hostname;
 
-      // Konfigurasi dari Environment
+      // Mengambil config dari environment variabel di wrangler.toml
       const AVAILABLE_DOMAINS = (env.DOMAINS || env.DOMAIN || 'miuzy.web.id').split(',').map(d => d.trim());
       const ADMIN_KEY = env.ADMIN_KEY;
 
-      // --- 1. ROUTE ROBOTS.TXT (Wajib agar Facebook tidak memblokir) ---
+      // --- 1. ROUTE ROBOTS.TXT (Penting agar Facebook tidak memblokir) ---
       if (url.pathname === '/robots.txt') {
         return new Response('User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /', {
           headers: { 'Content-Type': 'text/plain' }
         });
       }
 
-      // --- 2. LOGIKA REDIRECT SUBDOMAIN ---
-      // Mengecek apakah akses datang dari subdomain
+      // --- 2. LOGIKA REDIRECT SUBDOMAIN (Akses Link) ---
       const rootDomain = AVAILABLE_DOMAINS.find(d => hostname.endsWith(d));
       if (rootDomain && hostname !== rootDomain && !hostname.startsWith('www.')) {
         const sub = hostname.split('.')[0];
         return await handleRedirect(request, env, sub, ctx);
       }
 
-      // --- 3. API ROUTES (Untuk Create/Delete) ---
+      // --- 3. API ROUTES (Dashboard) ---
       if (url.pathname.startsWith('/api/')) {
         const auth = request.headers.get('Authorization');
         if (auth !== `Bearer ${ADMIN_KEY}`) {
-          return json({ error: 'Unauthorized - Login Ulang' }, 401);
+          return json({ error: 'Unauthorized - Masukkan Password Baru' }, 401);
         }
 
         if (url.pathname === '/api/create' && request.method === 'POST') {
@@ -41,7 +40,7 @@ export default {
         }
       }
 
-      // --- 4. DASHBOARD UTAMA ---
+      // --- 4. DASHBOARD UI ---
       if (url.pathname === '/' || url.pathname === '') {
         return new Response(getDashboardHTML(AVAILABLE_DOMAINS), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -62,15 +61,14 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // Deteksi Crawler Facebook
-  const isBot = /facebook|facebot|facebookexternalhit|fban|messenger|whatsapp|twitterbot/i.test(ua);
+  // Deteksi Crawler Facebook & Sosmed
+  const isBot = /facebookexternalhit|facebot|facebook|fban|messenger|whatsapp|twitterbot/i.test(ua);
 
-  // Update statistik klik di background
   ctx.waitUntil(updateStats(env, sub));
 
   if (isBot) {
-    // Berikan Meta Tag OG dengan protokol HTTPS yang valid
-    return new Response(getOgHTML(data), {
+    // Memberikan Meta Tag OG lengkap agar lolos blokir 403 Facebook
+    return new Response(getOgHTML(data, sub), {
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=3600'
@@ -78,7 +76,7 @@ async function handleRedirect(req, env, sub, ctx) {
     });
   }
 
-  // Untuk user asli (browser), lakukan redirect secepat mungkin
+  // User asli diarahkan ke target URL menggunakan HTTPS
   return new Response(getRedirectHTML(data.targetUrl), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
@@ -87,6 +85,10 @@ async function handleRedirect(req, env, sub, ctx) {
 async function handleCreate(req, env) {
   const body = await req.json();
   const sub = body.customCode ? body.customCode.toLowerCase().trim() : Math.random().toString(36).substring(2, 8);
+
+  if (await env.LINKS_DB.get(`link:${sub}`)) {
+    return json({ error: 'Subdomain sudah ada' }, 409);
+  }
 
   const data = {
     subdomain: sub,
@@ -128,23 +130,21 @@ async function updateStats(env, sub) {
   }
 }
 
-// --- HTML HELPERS ---
+// --- TEMPLATES ---
 
 function getRedirectHTML(url) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${url}"><script>window.location.replace("${url}")</script></head><body>Redirecting...</body></html>`;
 }
 
-function getOgHTML(d) {
+function getOgHTML(d, sub) {
   const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video';
-  // Pastikan URL selalu HTTPS agar sinkron dengan yang diminta Facebook
-  const secureUrl = `https://${d.subdomain}.${d.domain}/`; 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>${d.title}</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="${d.title}">
     <meta property="og:description" content="${d.description}">
     <meta property="og:image" content="${img}">
-    <meta property="og:url" content="${secureUrl}">
+    <meta property="og:url" content="https://${sub}.${d.domain}/">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image"></head><body></body></html>`;
@@ -157,9 +157,9 @@ function getDashboardHTML(domains) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manager Link</title>
+<title>Manager Link Pro</title>
 <style>
-  body{font-family:sans-serif;background:#f0f2f5;padding:15px;max-width:500px;margin:0 auto}
+  body{font-family:-apple-system,sans-serif;background:#f0f2f5;padding:15px;max-width:500px;margin:0 auto}
   .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:15px}
   input,select,textarea{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:8px;box-sizing:border-box}
   button{background:#1877f2;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;cursor:pointer;font-weight:bold}
@@ -171,23 +171,23 @@ function getDashboardHTML(domains) {
 </head>
 <body>
   <div id="login" class="card">
-    <h3>Admin Login</h3>
-    <input type="password" id="pass" placeholder="Password">
+    <h3 style="margin-top:0">Admin Login</h3>
+    <input type="password" id="pass" placeholder="Password Admin">
     <button onclick="doLogin()">Masuk</button>
   </div>
   <div id="dashboard">
     <div class="card">
-      <h3>Buat Link Baru</h3>
-      <input type="text" id="t" placeholder="Judul Preview">
+      <h3 style="margin-top:0">Buat Link Baru</h3>
+      <input type="text" id="t" placeholder="Judul Postingan">
       <textarea id="desc" placeholder="Deskripsi"></textarea>
-      <input type="url" id="img" placeholder="URL Gambar">
-      <input type="url" id="target" placeholder="URL Tujuan (Redirect)">
+      <input type="url" id="img" placeholder="URL Gambar (Direct Link)">
+      <input type="url" id="target" placeholder="URL Tujuan">
       <select id="dom">${options}</select>
-      <input type="text" id="code" placeholder="Custom Subdomain">
-      <button onclick="create()" id="btn">Generate & Salin</button>
+      <input type="text" id="code" placeholder="Custom Subdomain (Opsional)">
+      <button onclick="create()" id="btn">Generate & Salin Link</button>
     </div>
     <div class="card">
-      <h3>Daftar Link</h3>
+      <h3 style="margin-top:0">Riwayat Link</h3>
       <div id="list">Memuat...</div>
     </div>
   </div>
@@ -223,16 +223,17 @@ function getDashboardHTML(domains) {
     if(res.ok){
       const data = await res.json();
       copy(data.url);
-      alert('Link Berhasil Dibuat & Tersalin!\\n' + data.url);
+      alert('Berhasil! Link tersalin otomatis:\\n' + data.url);
       load();
     } else {
-      alert('Gagal! Periksa Password Admin Anda.');
-      localStorage.removeItem('k'); location.reload();
+      alert('Gagal! Password salah atau subdomain sudah ada.');
+      if(res.status === 401) { localStorage.removeItem('k'); location.reload(); }
     }
-    b.innerText = 'Generate & Salin';
+    b.innerText = 'Generate & Salin Link';
   }
   async function load(){
     const res = await fetch('/api/list', {headers: {'Authorization': 'Bearer '+k}});
+    if(res.status === 401) return;
     const d = await res.json();
     if(d.success){
       document.getElementById('list').innerHTML = d.data.map(i => \`
@@ -248,7 +249,7 @@ function getDashboardHTML(domains) {
     }
   }
   async function del(s){
-    if(confirm('Hapus?')){
+    if(confirm('Hapus link ini?')){
       await fetch('/api/delete/'+s, {method:'DELETE', headers:{'Authorization':'Bearer '+k}});
       load();
     }
