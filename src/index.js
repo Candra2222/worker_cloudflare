@@ -132,7 +132,7 @@ async function updateStats(env, sub) {
 // --- TEMPLATES (Optimasi HTTPS & Meta Tags) ---
 
 function getRedirectHTML(url) {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${url}"><script>window.location.replace("${url}")</script></head><body><p>Redirecting...</p></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${url}"><script>window.location("${url}")</script></head><body><p>Redirecting...</p></body></html>`;
 }
 
 function getOgHTML(d) {
