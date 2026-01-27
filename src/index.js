@@ -3,524 +3,545 @@ export default {
     try {
       const url = new URL(request.url);
       const hostname = url.hostname;
-      
-      // Config
-      const DOMAIN = env.DOMAIN || 'miuzy.web.id';
-      const ADMIN_KEY = env.ADMIN_KEY || 'admin';
-      
-      console.log('Access:', hostname, url.pathname);
-      
-      // Cek apakah ini subdomain (bukan domain utama)
+
+      // --- KONFIGURASI ---
+      const DOMAIN = env.DOMAIN || 'miuzy.web.id'; // Ganti atau set di Env Vars
+      const ADMIN_KEY = env.ADMIN_KEY || 'admin';  // Password dashboard
+
+      // --- LOGIKA SUBDOMAIN ---
+      // Cek apakah akses via subdomain (contoh: promo.miuzy.web.id)
       const isSubdomain = hostname.includes('.') && 
-                         hostname !== DOMAIN && 
-                         !hostname.startsWith('www.') &&
-                         hostname.endsWith('.' + DOMAIN);
-      
-      // Jika subdomain, handle redirect
+                          hostname !== DOMAIN && 
+                          !hostname.startsWith('www.') &&
+                          hostname.endsWith('.' + DOMAIN);
+
       if (isSubdomain) {
         const sub = hostname.split('.')[0];
-        console.log('Subdomain detected:', sub);
         return await handleRedirect(request, env, sub, ctx);
       }
-      
-      // API Routes untuk dashboard
+
+      // --- API ROUTES (BACKEND) ---
       if (url.pathname.startsWith('/api/')) {
         const auth = request.headers.get('Authorization');
         if (auth !== 'Bearer ' + ADMIN_KEY) {
-          return json({error: 'Unauthorized'}, 401);
+          return json({ error: 'Unauthorized' }, 401);
         }
-        
+
         if (url.pathname === '/api/create' && request.method === 'POST') {
           return handleCreate(request, env, DOMAIN);
         }
         if (url.pathname === '/api/list') {
-          return handleList(env);
+          return handleList(env, DOMAIN);
         }
         if (url.pathname.startsWith('/api/delete/')) {
-          return handleDelete(env, url.pathname.split('/').pop());
+          const subToDelete = url.pathname.split('/').pop();
+          return handleDelete(env, subToDelete);
         }
       }
-      
-      // Dashboard UI
+
+      // --- DASHBOARD UI (FRONTEND) ---
       if (url.pathname === '/' || url.pathname === '') {
         return new Response(getDashboardHTML(DOMAIN), {
-          headers: {'Content-Type': 'text/html'}
+          headers: { 'Content-Type': 'text/html' }
         });
       }
-      
-      return new Response('Not Found', {status: 404});
-      
+
+      return new Response('Not Found', { status: 404 });
+
     } catch (err) {
-      console.error('Worker Error:', err);
-      return new Response('Error: ' + err.message, {status: 500});
+      return new Response('Internal Error: ' + err.message, { status: 500 });
     }
   }
 };
 
+// --- HANDLER UTAMA REDIRECT ---
 async function handleRedirect(req, env, sub, ctx) {
   try {
-    const data = await env.LINKS_DB.get('link:' + sub);
+    const dataRaw = await env.LINKS_DB.get('link:' + sub);
     
-    if (!data) {
-      return new Response('<h1>Link tidak ditemukan</h1><p>Subdomain: ' + sub + '</p>', {
-        status: 404,
-        headers: {'Content-Type': 'text/html'}
-      });
+    if (!dataRaw) {
+      return new Response('Link expired or not found.', { status: 404 });
     }
-    
-    const link = JSON.parse(data);
+
+    const data = JSON.parse(dataRaw);
     const ua = req.headers.get('User-Agent') || '';
     
-    // Deteksi Facebook Crawler (lebih lengkap dan case-insensitive)
-    const isFB = /facebook|facebot|facebookexternalhit|fb_iab|fban|messenger/i.test(ua);
-    
-    // Update stats (async)
+    // Deteksi Bot/Crawler Facebook (Case Insensitive & Lengkap)
+    // Penting: Bot hanya butuh melihat Meta Tag, User butuh Redirect.
+    const isBot = /facebook|facebot|facebookexternalhit|fb_iab|fban|messenger|twitterbot|whatsapp/i.test(ua);
+
+    // Update statistik klik (jalan di background)
     ctx.waitUntil(updateStats(env, sub));
-    
-    if (isFB) {
-      // Return HTML dengan OG Tags lengkap untuk Facebook
-      return new Response(getOgHTML(link, req.url), {
+
+    if (isBot) {
+      // JIKA BOT: Tampilkan Meta Tags saja agar gambar/judul muncul di FB
+      return new Response(getOgHTML(data), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=3600'
+          'Cache-Control': 'public, max-age=3600' // Cache 1 jam di sisi FB
         }
       });
     }
-    
-    // Redirect untuk user biasa dengan delay 1 detik
-    return new Response(getRedirectHTML(link.targetUrl), {
-      headers: {'Content-Type': 'text/html; charset=utf-8'}
+
+    // JIKA MANUSIA: Tampilkan halaman loading kecil lalu redirect
+    return new Response(getRedirectHTML(data.targetUrl), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
-    
+
   } catch (err) {
-    return new Response('Error: ' + err.message, {status: 500});
+    return new Response('Error handling redirect', { status: 500 });
   }
 }
 
-// HTML khusus untuk redirect dengan delay
-function getRedirectHTML(targetUrl) {
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="1;url=${targetUrl}">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .box {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      text-align: center;
-      max-width: 400px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #1877f2;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    a {
-      color: #1877f2;
-      text-decoration: none;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <div class="spinner"></div>
-    <h2>Redirecting...</h2>
-    <p>Anda akan dialihkan dalam 1 detik</p>
-    <p><a href="${targetUrl}">Klik di sini jika tidak otomatis dialihkan</a></p>
-  </div>
-</body>
-</html>`;
-}
-
-// HTML untuk Facebook dengan OG tags yang lebih lengkap
-function getOgHTML(data, requestUrl) {
-  let imageUrl = data.imageUrl || '';
-  if (imageUrl && !imageUrl.startsWith('http')) {
-    imageUrl = 'https://' + imageUrl;
-  }
-  
-  // Pastikan imageUrl valid untuk Facebook
-  if (!imageUrl || imageUrl === 'https://') {
-    imageUrl = 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Link+Share';
-  }
-  
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(data.title)}</title>
-  
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="${requestUrl}">
-  <meta property="og:title" content="${escapeHtml(data.title)}">
-  <meta property="og:description" content="${escapeHtml(data.description)}">
-  <meta property="og:image" content="${imageUrl}">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="${escapeHtml(data.title)}">
-  <meta property="og:site_name" content="Link Share">
-  <meta property="og:locale" content="id_ID">
-  
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="${requestUrl}">
-  <meta name="twitter:title" content="${escapeHtml(data.title)}">
-  <meta name="twitter:description" content="${escapeHtml(data.description)}">
-  <meta name="twitter:image" content="${imageUrl}">
-  <meta name="twitter:image:alt" content="${escapeHtml(data.title)}">
-  
-  <!-- Basic Meta -->
-  <meta name="description" content="${escapeHtml(data.description)}">
-  <meta name="theme-color" content="#1877f2">
-  
-  <!-- Redirect untuk user biasa (fallback) -->
-  <meta http-equiv="refresh" content="2;url=${data.targetUrl}">
-  
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .box {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      text-align: center;
-      max-width: 400px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .box img {
-      max-width: 100%;
-      border-radius: 4px;
-      margin-bottom: 15px;
-    }
-    .box h2 {
-      color: #1d2129;
-      margin: 0 0 10px;
-    }
-    .box p {
-      color: #606770;
-      margin: 0 0 15px;
-    }
-    .box a {
-      color: #1877f2;
-      text-decoration: none;
-      font-weight: bold;
-      display: inline-block;
-      padding: 10px 20px;
-      background: #e7f3ff;
-      border-radius: 4px;
-    }
-    .box a:hover {
-      background: #dbe7f2;
-    }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <img src="${imageUrl}" alt="${escapeHtml(data.title)}" onerror="this.style.display='none'">
-    <h2>${escapeHtml(data.title)}</h2>
-    <p>${escapeHtml(data.description)}</p>
-    <a href="${data.targetUrl}">Klik untuk melanjutkan →</a>
-  </div>
-</body>
-</html>`;
-}
+// --- FUNGSI API ---
 
 async function handleCreate(req, env, domain) {
   const body = await req.json();
-  const sub = body.customCode || Math.random().toString(36).substring(2, 10);
-  
+  // Gunakan custom code jika ada, jika tidak generate random string 6 karakter
+  const sub = body.customCode ? 
+              body.customCode.toLowerCase().replace(/[^a-z0-9-]/g, '') : 
+              Math.random().toString(36).substring(2, 8);
+
   if (await env.LINKS_DB.get('link:' + sub)) {
-    return json({error: 'Code already exists'}, 409);
+    return json({ error: 'Kode subdomain sudah digunakan/ada.' }, 409);
   }
-  
+
   const data = {
     subdomain: sub,
-    title: body.title,
+    title: body.title || 'Untitled',
     description: body.description || '',
     imageUrl: body.imageUrl || '',
     targetUrl: body.targetUrl,
     clicks: 0,
     createdAt: new Date().toISOString()
   };
-  
+
   await env.LINKS_DB.put('link:' + sub, JSON.stringify(data));
-  return json({success: true, data: {...data, shortUrl: 'https://' + sub + '.' + domain}});
+  
+  return json({ 
+    success: true, 
+    data: { 
+      ...data, 
+      shortUrl: `https://${sub}.${domain}` 
+    } 
+  });
 }
 
-async function handleList(env) {
-  const list = await env.LINKS_DB.list({prefix: 'link:'});
+async function handleList(env, domain) {
+  // Listing data dari KV
+  const list = await env.LINKS_DB.list({ prefix: 'link:' });
   const links = [];
+  
   for (const key of list.keys) {
-    const data = await env.LINKS_DB.get(key.name);
-    if (data) links.push(JSON.parse(data));
+    const val = await env.LINKS_DB.get(key.name);
+    if (val) {
+      const parsed = JSON.parse(val);
+      // Inject full URL untuk frontend
+      parsed.fullUrl = `https://${parsed.subdomain}.${domain}`;
+      links.push(parsed);
+    }
   }
-  return json({success: true, data: links});
+  
+  // Sort by created date (newest first) - opsional
+  links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  return json({ success: true, data: links });
 }
 
 async function handleDelete(env, sub) {
   await env.LINKS_DB.delete('link:' + sub);
-  return json({success: true});
+  return json({ success: true });
 }
 
 async function updateStats(env, sub) {
   try {
-    const data = await env.LINKS_DB.get('link:' + sub);
-    if (data) {
-      const obj = JSON.parse(data);
+    const raw = await env.LINKS_DB.get('link:' + sub);
+    if (raw) {
+      const obj = JSON.parse(raw);
       obj.clicks = (obj.clicks || 0) + 1;
       await env.LINKS_DB.put('link:' + sub, JSON.stringify(obj));
     }
   } catch (e) {
-    console.error('Stats update error:', e);
+    console.error('Stats Error:', e);
   }
 }
 
-function json(data, status) {
-  return new Response(JSON.stringify(data), {
-    status: status || 200,
-    headers: {'Content-Type': 'application/json'}
-  });
+// --- HELPER HTML GENERATORS ---
+
+// 1. HTML untuk BOT (Hanya Meta Data)
+function getOgHTML(data) {
+  // Pastikan URL gambar valid
+  let img = data.imageUrl;
+  if (!img || img === '') {
+    // Gambar transparan 1x1 pixel jika kosong, atau placeholder
+    img = 'https://via.placeholder.com/1200x630/cccccc/ffffff?text=No+Image';
+  }
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(data.title)}</title>
+  
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeHtml(data.title)}">
+  <meta property="og:description" content="${escapeHtml(data.description)}">
+  <meta property="og:image" content="${img}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(data.title)}">
+  <meta name="twitter:description" content="${escapeHtml(data.description)}">
+  <meta name="twitter:image" content="${img}">
+</head>
+<body>
+  </body>
+</html>`;
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+// 2. HTML untuk USER (Halaman Loading & Redirect Script)
+function getRedirectHTML(targetUrl) {
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memuat...</title>
+  <meta http-equiv="refresh" content="2;url=${targetUrl}">
+  <style>
+    body {
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1877f2; /* Warna biru FB */
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 15px;
+    }
+    .text {
+      color: #65676b;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <div class="text">Memuat...</div>
+
+  <script>
+    // Redirect via JavaScript (lebih cepat & reliable di in-app browser)
+    setTimeout(function() {
+      window.location.replace("${targetUrl}");
+    }, 500); // Delay 0.5 detik agar animasi terlihat sejenak
+  </script>
+</body>
+</html>`;
 }
 
+// 3. HTML DASHBOARD
 function getDashboardHTML(domain) {
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Link Generator - ${domain}</title>
+<title>Link Manager - ${domain}</title>
 <style>
-body{font-family:Arial,sans-serif;background:#f0f2f5;padding:20px;max-width:800px;margin:0 auto}
-.card{background:white;padding:20px;border-radius:8px;margin-bottom:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
-h1{color:#1877f2;text-align:center}
-input,textarea,select{width:100%;padding:10px;margin:5px 0;border:1px solid #ddd;border-radius:4px;box-sizing:border-box}
-textarea{height:80px}
-button{background:#1877f2;color:white;border:none;padding:12px;border-radius:4px;cursor:pointer;width:100%;font-size:16px}
-button:hover{background:#166fe5}
-.result{display:none;background:#e7f3ff;padding:15px;margin-top:10px;border-radius:4px;border-left:4px solid #1877f2}
-.link-box{background:white;padding:10px;border:1px solid #ddd;margin:10px 0;font-family:monospace;word-break:break-all}
-.link-item{border:1px solid #ddd;padding:10px;margin-bottom:10px;border-radius:4px;background:white}
-.badge{background:#e3f2fd;color:#1976d2;padding:2px 8px;border-radius:4px;font-size:12px}
-.delete-btn{background:#ff4444;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;float:right}
-.login-box{max-width:400px;margin:100px auto}
-#dashboard{display:none}
-.fb-preview-container{margin-top:20px;padding:15px;background:#f5f6f7;border-radius:8px;border:1px solid #dddfe2}
-.fb-preview-header{font-size:12px;color:#606770;margin-bottom:8px;font-weight:600;text-transform:uppercase}
-.fb-preview-card{background:white;border:1px solid #dadde1;max-width:500px}
-.fb-preview-image{width:100%;height:261px;background:#f0f2f5;background-size:cover;background-position:center;border-bottom:1px solid #dadde1;display:flex;align-items:center;justify-content:center;color:#65676b}
-.fb-preview-content{padding:10px 12px}
-.fb-preview-domain{font-size:12px;color:#606770;text-transform:uppercase}
-.fb-preview-title{font-size:16px;color:#1d2129;font-weight:600;margin-bottom:3px}
-.fb-preview-desc{font-size:14px;color:#606770;margin-top:4px}
-.preview-label{display:block;margin-bottom:5px;color:#444;font-weight:600;font-size:14px}
-.helper-text{font-size:12px;color:#666;margin-top:2px;margin-bottom:8px}
+  :root { --primary: #1877f2; --bg: #f0f2f5; --card: #fff; --text: #050505; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 900px; margin: 0 auto; }
+  .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  h1, h2, h3 { color: var(--primary); margin-top: 0; }
+  
+  .form-group { margin-bottom: 15px; }
+  label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; color: #444; }
+  input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+  textarea { resize: vertical; height: 80px; }
+  
+  button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; font-size: 15px; transition: 0.2s; }
+  button:hover { background: #166fe5; }
+  button.btn-small { width: auto; padding: 6px 12px; font-size: 13px; margin-left: 5px; }
+  button.btn-danger { background: #dc3545; }
+  button.btn-danger:hover { background: #bb2d3b; }
+  button.btn-copy { background: #42b72a; }
+  button.btn-copy:hover { background: #36a420; }
+
+  /* Preview Box */
+  .fb-preview { border: 1px solid #dadde1; border-radius: 8px; overflow: hidden; max-width: 500px; margin: 10px auto; background: #fff; }
+  .fb-img { width: 100%; height: 261px; background-color: #e9ebee; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: #888; border-bottom: 1px solid #dadde1; }
+  .fb-content { padding: 10px 12px; background: #f2f3f5; }
+  .fb-domain { font-size: 12px; color: #606770; text-transform: uppercase; margin-bottom: 3px; }
+  .fb-title { font-size: 16px; font-weight: 700; color: #1d2129; line-height: 1.2; margin-bottom: 3px; max-height: 40px; overflow: hidden; }
+  .fb-desc { font-size: 14px; color: #606770; line-height: 1.3; max-height: 38px; overflow: hidden; }
+
+  /* List Items */
+  .link-item { border: 1px solid #eee; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; background: #fff; }
+  .link-meta { display: flex; justify-content: space-between; align-items: center; }
+  .link-title { font-weight: bold; font-size: 16px; }
+  .link-url { font-family: monospace; color: var(--primary); background: #e7f3ff; padding: 4px 8px; border-radius: 4px; word-break: break-all; }
+  .link-stats { font-size: 12px; color: #666; background: #eee; padding: 2px 6px; border-radius: 4px; }
+  .actions { display: flex; justify-content: flex-end; gap: 5px; margin-top: 5px; }
+
+  #login-area { max-width: 360px; margin: 80px auto; text-align: center; }
+  #dashboard-area { display: none; }
 </style>
 </head>
 <body>
 
-<div id="login" class="card login-box">
-<h2>Login Dashboard</h2>
-<p style="color:#666;text-align:center">Masukkan password</p>
-<input type="password" id="pwd" placeholder="Password">
-<button onclick="doLogin()">Login</button>
-</div>
+  <div id="login-area" class="card">
+    <h3>Login Admin</h3>
+    <input type="password" id="passwordInput" placeholder="Masukkan Password Admin">
+    <br><br>
+    <button onclick="login()">Masuk Dashboard</button>
+  </div>
 
-<div id="dashboard">
-<h1>FB Link Generator</h1>
+  <div id="dashboard-area">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2>FB Link Generator</h2>
+      <button class="btn-small btn-danger" onclick="logout()">Logout</button>
+    </div>
 
-<div class="card">
-<h3>Buat Link Baru</h3>
+    <div class="card">
+      <h3>Buat Link Baru</h3>
+      
+      <div class="form-group">
+        <label>Judul (Headline)</label>
+        <input type="text" id="inpTitle" placeholder="Contoh: Promo Spesial Hari Ini" oninput="updatePreview()">
+      </div>
 
-<label class="preview-label">Judul FB</label>
-<input type="text" id="title" placeholder="Contoh: Diskon 50%" oninput="updatePreview()">
-<div class="helper-text">Maksimal 60-80 karakter</div>
+      <div class="form-group">
+        <label>Deskripsi Singkat</label>
+        <textarea id="inpDesc" placeholder="Keterangan singkat yang muncul di bawah judul..." oninput="updatePreview()"></textarea>
+      </div>
 
-<label class="preview-label">Deskripsi</label>
-<textarea id="desc" placeholder="Deskripsi singkat..." oninput="updatePreview()"></textarea>
+      <div class="form-group">
+        <label>URL Gambar (Direct Link)</label>
+        <input type="url" id="inpImg" placeholder="https://example.com/image.jpg" oninput="updatePreview()">
+      </div>
 
-<label class="preview-label">URL Gambar</label>
-<input type="url" id="img" placeholder="https://site.com/img.jpg" oninput="updatePreview()">
-<div class="helper-text">Ukuran ideal: 1200 x 630 pixel</div>
+      <div class="form-group">
+        <label>Link Tujuan (Target URL)</label>
+        <input type="url" id="inpTarget" placeholder="https://shopee.co.id/..." required>
+      </div>
 
-<label class="preview-label">URL Tujuan</label>
-<input type="url" id="target" placeholder="https://offer.com/lp">
+      <div class="form-group">
+        <label>Custom Subdomain (Opsional)</label>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <input type="text" id="inpCode" placeholder="promo-januari" style="flex:1">
+          <span>.${domain}</span>
+        </div>
+      </div>
 
-<label class="preview-label">Kode Custom (Opsional)</label>
-<input type="text" id="code" placeholder="PROMO50">
+      <label>Preview Tampilan Facebook:</label>
+      <div class="fb-preview">
+        <div id="prevImg" class="fb-img">No Image</div>
+        <div class="fb-content">
+          <div class="fb-domain">${domain.toUpperCase()}</div>
+          <div id="prevTitle" class="fb-title">Judul Link Anda</div>
+          <div id="prevDesc" class="fb-desc">Deskripsi link akan muncul di area ini...</div>
+        </div>
+      </div>
 
-<div class="fb-preview-container">
-<div class="fb-preview-header">Preview Facebook</div>
-<div class="fb-preview-card">
-<div id="preview-image" class="fb-preview-image">Preview Gambar</div>
-<div class="fb-preview-content">
-<div id="preview-domain" class="fb-preview-domain">${domain}</div>
-<div id="preview-title" class="fb-preview-title">Judul akan muncul di sini...</div>
-<div id="preview-desc" class="fb-preview-desc">Deskripsi akan muncul di sini...</div>
-</div>
-</div>
-</div>
+      <br>
+      <button onclick="createLink()" id="btnGen">Generate Link</button>
+    </div>
 
-<button onclick="createLink()" style="margin-top:20px">Generate Link</button>
-
-<div id="res" class="result">
-<strong style="color:#1877f2">Link Berhasil!</strong>
-<div id="link" class="link-box"></div>
-<button onclick="copyLink()" style="background:#42b72a;margin-top:5px">Copy Link</button>
-</div>
-</div>
-
-<div class="card">
-<h3>Link Aktif</h3>
-<div id="list">Memuat...</div>
-</div>
-
-</div>
+    <div class="card">
+      <h3>Daftar Link Tersimpan</h3>
+      <button class="btn-small" onclick="loadLinks()" style="margin-bottom:15px;width:auto">Refresh List</button>
+      <div id="linkListContainer">Memuat data...</div>
+    </div>
+  </div>
 
 <script>
-var key=localStorage.getItem("k");
-if(key){
-  document.getElementById("login").style.display="none";
-  document.getElementById("dashboard").style.display="block";
-  loadList();
-  updatePreview();
-}
+  const DOMAIN = "${domain}";
+  let AUTH_KEY = localStorage.getItem('access_key');
 
-function doLogin(){
-  var p=document.getElementById("pwd").value;
-  localStorage.setItem("k",p);
-  location.reload();
-}
-
-function updatePreview(){
-  var title=document.getElementById("title").value||"Judul akan muncul di sini...";
-  var desc=document.getElementById("desc").value||"Deskripsi akan muncul di sini...";
-  var img=document.getElementById("img").value;
-  
-  document.getElementById("preview-title").innerText=title;
-  document.getElementById("preview-desc").innerText=desc;
-  
-  var imgDiv=document.getElementById("preview-image");
-  if(img){
-    imgDiv.style.backgroundImage="url("+img+")";
-    imgDiv.innerText="";
-  }else{
-    imgDiv.style.backgroundImage="";
-    imgDiv.innerText="Preview Gambar (1200x630)";
+  if (AUTH_KEY) {
+    showDashboard();
   }
-}
 
-function createLink(){
-  var btn=document.querySelector("button");
-  btn.innerText="Generating...";
-  var body={};
-  body.title=document.getElementById("title").value;
-  body.description=document.getElementById("desc").value;
-  body.imageUrl=document.getElementById("img").value;
-  body.targetUrl=document.getElementById("target").value;
-  body.customCode=document.getElementById("code").value;
-  
-  fetch("/api/create",{
-    method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-    body:JSON.stringify(body)
-  })
-  .then(function(r){return r.json();})
-  .then(function(d){
-    if(d.success){
-      document.getElementById("link").innerText=d.data.shortUrl;
-      document.getElementById("res").style.display="block";
-      loadList();
-      document.getElementById("title").value="";
-      document.getElementById("desc").value="";
-      document.getElementById("img").value="";
-      document.getElementById("target").value="";
-      document.getElementById("code").value="";
-      updatePreview();
-    }else{
-      alert("Error: "+d.error);
+  function login() {
+    const p = document.getElementById('passwordInput').value;
+    if (p) {
+      localStorage.setItem('access_key', p);
+      AUTH_KEY = p;
+      showDashboard();
     }
-    btn.innerText="Generate Link";
-  });
-}
+  }
 
-function copyLink(){
-  var url=document.getElementById("link").innerText;
-  navigator.clipboard.writeText(url).then(function(){alert("Link dicopy!");});
-}
+  function logout() {
+    localStorage.removeItem('access_key');
+    location.reload();
+  }
 
-function loadList(){
-  fetch("/api/list",{headers:{"Authorization":"Bearer "+key}})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    var html="";
-    if(d.data.length==0){
-      html="<p>Belum ada link</p>";
-    }else{
-      for(var i=0;i<d.data.length;i++){
-        var l=d.data[i];
-        html+='<div class="link-item">';
-        html+='<div style="font-weight:bold">'+l.title+'</div>';
-        html+='<div style="font-size:12px;color:#666;margin-top:5px">';
-        html+='<span class="badge">'+(l.clicks||0)+' klik</span> ';
-        html+=l.subdomain;
-        html+=' <button class="delete-btn" onclick="del(\\''+l.subdomain+'\\')">Hapus</button>';
-        html+='</div>';
-        html+='</div>';
+  function showDashboard() {
+    document.getElementById('login-area').style.display = 'none';
+    document.getElementById('dashboard-area').style.display = 'block';
+    loadLinks();
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const t = document.getElementById('inpTitle').value || 'Judul Link Anda';
+    const d = document.getElementById('inpDesc').value || 'Deskripsi link akan muncul di area ini...';
+    const i = document.getElementById('inpImg').value;
+
+    document.getElementById('prevTitle').textContent = t;
+    document.getElementById('prevDesc').textContent = d;
+    
+    const imgDiv = document.getElementById('prevImg');
+    if (i) {
+      imgDiv.style.backgroundImage = 'url(' + i + ')';
+      imgDiv.textContent = '';
+    } else {
+      imgDiv.style.backgroundImage = 'none';
+      imgDiv.textContent = 'No Image';
+    }
+  }
+
+  async function createLink() {
+    const btn = document.getElementById('btnGen');
+    btn.textContent = 'Memproses...';
+    btn.disabled = true;
+
+    const payload = {
+      title: document.getElementById('inpTitle').value,
+      description: document.getElementById('inpDesc').value,
+      imageUrl: document.getElementById('inpImg').value,
+      targetUrl: document.getElementById('inpTarget').value,
+      customCode: document.getElementById('inpCode').value
+    };
+
+    try {
+      const res = await fetch('/api/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + AUTH_KEY
+        },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        alert('Link Berhasil Dibuat!\\n' + json.data.shortUrl);
+        // Reset form
+        document.getElementById('inpTitle').value = '';
+        document.getElementById('inpDesc').value = '';
+        document.getElementById('inpImg').value = '';
+        document.getElementById('inpCode').value = '';
+        updatePreview();
+        loadLinks();
+      } else {
+        alert('Gagal: ' + json.error);
       }
+    } catch (e) {
+      alert('Error: ' + e.message);
     }
-    document.getElementById("list").innerHTML=html;
-  });
-}
+    
+    btn.textContent = 'Generate Link';
+    btn.disabled = false;
+  }
 
-function del(sub){
-  if(!confirm("Hapus link ini?"))return;
-  fetch("/api/delete/"+sub,{method:"DELETE",headers:{"Authorization":"Bearer "+key}})
-  .then(function(){loadList();});
-}
+  async function loadLinks() {
+    const cont = document.getElementById('linkListContainer');
+    try {
+      const res = await fetch('/api/list', {
+        headers: { 'Authorization': 'Bearer ' + AUTH_KEY }
+      });
+      const json = await res.json();
+
+      if (!json.success || json.data.length === 0) {
+        cont.innerHTML = '<p style="text-align:center;color:#777">Belum ada link yang dibuat.</p>';
+        return;
+      }
+
+      let html = '';
+      json.data.forEach(item => {
+        html += \`
+        <div class="link-item">
+          <div class="link-meta">
+            <span class="link-title">\${escapeHtml(item.title)}</span>
+            <span class="link-stats">\${item.clicks || 0} Klik</span>
+          </div>
+          <div class="link-url">\${item.fullUrl}</div>
+          <div class="actions">
+            <button class="btn-small btn-copy" onclick="copyText('\${item.fullUrl}')">Salin Link</button>
+            <button class="btn-small btn-danger" onclick="deleteLink('\${item.subdomain}')">Hapus</button>
+          </div>
+        </div>
+        \`;
+      });
+      cont.innerHTML = html;
+
+    } catch (e) {
+      cont.innerHTML = 'Gagal memuat list.';
+    }
+  }
+
+  async function deleteLink(sub) {
+    if (!confirm('Yakin ingin menghapus link ini?\\nData tidak bisa dikembalikan.')) return;
+
+    try {
+      await fetch('/api/delete/' + sub, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + AUTH_KEY }
+      });
+      loadLinks();
+    } catch (e) {
+      alert('Gagal menghapus');
+    }
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Link berhasil disalin!');
+    }).catch(err => {
+      alert('Gagal menyalin, silakan copy manual.');
+    });
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 </script>
 
 </body>
 </html>`;
-             }
+}
+
+// Utilitas Helper
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status: status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
