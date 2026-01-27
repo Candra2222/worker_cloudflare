@@ -4,18 +4,25 @@ export default {
       const url = new URL(request.url);
       const hostname = url.hostname;
 
-      // Ambil domain dari environment (bisa banyak dipisah koma)
+      // Ambil domain dari environment (bisa banyak dipisah koma di TOML)
       const AVAILABLE_DOMAINS = (env.DOMAINS || env.DOMAIN || 'miuzy.web.id').split(',').map(d => d.trim());
       const ADMIN_KEY = env.ADMIN_KEY;
 
-      // --- LOGIKA REDIRECT SUBDOMAIN (Akses Link) ---
+      // --- NEW: ROUTE ROBOTS.TXT (Fix Facebook Scraper Block) ---
+      if (url.pathname === '/robots.txt') {
+        return new Response('User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /', {
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // --- LOGIKA REDIRECT SUBDOMAIN ---
       const rootDomain = AVAILABLE_DOMAINS.find(d => hostname.endsWith(d));
       if (rootDomain && hostname !== rootDomain && !hostname.startsWith('www.')) {
         const sub = hostname.split('.')[0];
         return await handleRedirect(request, env, sub, ctx);
       }
 
-      // --- API ROUTES (Dashboard) ---
+      // --- API ROUTES ---
       if (url.pathname.startsWith('/api/')) {
         const auth = request.headers.get('Authorization');
         if (auth !== `Bearer ${ADMIN_KEY}`) {
@@ -54,13 +61,13 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // Deteksi Crawler Facebook agar memberikan preview, bukan redirect langsung
+  // Deteksi Crawler Facebook & Sosmed lainnya
   const isBot = /facebook|facebot|facebookexternalhit|fban|messenger|whatsapp|twitterbot/i.test(ua);
 
   ctx.waitUntil(updateStats(env, sub));
 
   if (isBot) {
-    // Memberikan HTML dengan meta tag lengkap agar Facebook tidak menolak (Fix Error 403/Bad Response)
+    // Meta Tag OG lengkap untuk preview FB yang maksimal
     return new Response(getOgHTML(data), {
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
@@ -69,7 +76,7 @@ async function handleRedirect(req, env, sub, ctx) {
     });
   }
 
-  // Untuk user biasa, gunakan redirect cepat
+  // User asli diarahkan ke target URL
   return new Response(getRedirectHTML(data.targetUrl), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
@@ -123,7 +130,7 @@ async function updateStats(env, sub) {
   }
 }
 
-// --- TEMPLATES ---
+// --- HTML TEMPLATES ---
 
 function getRedirectHTML(url) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=${url}"><script>window.location.replace("${url}")</script></head><body><p>Redirecting...</p></body></html>`;
@@ -150,7 +157,7 @@ function getDashboardHTML(domains) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Link Manager</title>
+<title>Link Manager Pro</title>
 <style>
   body{font-family:-apple-system,sans-serif;background:#f0f2f5;padding:15px;max-width:500px;margin:0 auto}
   .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:15px}
@@ -176,8 +183,9 @@ function getDashboardHTML(domains) {
       <textarea id="desc" placeholder="Deskripsi"></textarea>
       <input type="url" id="img" placeholder="URL Gambar">
       <input type="url" id="target" placeholder="URL Tujuan">
+      <label style="font-size:12px; color:#666">Pilih Domain Utama:</label>
       <select id="dom">${options}</select>
-      <input type="text" id="code" placeholder="Custom Code (Opsional)">
+      <input type="text" id="code" placeholder="Custom Subdomain (Kosongkan jika acak)">
       <button onclick="create()" id="btn">Generate & Salin Link</button>
     </div>
     <div class="card">
@@ -222,8 +230,8 @@ function getDashboardHTML(domains) {
     
     if(res.ok){
       const data = await res.json();
-      copy(data.url); // Fitur Salin Otomatis
-      alert('Berhasil! Link sudah tersalin otomatis:\\n' + data.url);
+      copyToClipboard(data.url);
+      alert('Link Berhasil Dibuat & Tersalin!\\n' + data.url);
       load();
     } else {
       const err = await res.json();
@@ -243,7 +251,7 @@ function getDashboardHTML(domains) {
           <strong>\${i.title}</strong>
           <span style="font-size:12px;color:#1877f2">\${i.subdomain}.\${i.domain}</span>
           <div class="actions">
-            <button class="btn-c" onclick="copy('https://\${i.subdomain}.\${i.domain}')">Salin</button>
+            <button class="btn-c" onclick="copyToClipboard('https://\${i.subdomain}.\${i.domain}')">Salin</button>
             <button class="btn-d" onclick="del('\${i.subdomain}')">Hapus</button>
           </div>
         </div>
@@ -252,19 +260,19 @@ function getDashboardHTML(domains) {
   }
 
   async function del(s){
-    if(confirm('Hapus link?')){
+    if(confirm('Hapus link ini?')){
       await fetch('/api/delete/'+s, {method:'DELETE', headers:{'Authorization':'Bearer '+k}});
       load();
     }
   }
 
-  function copy(t){
-    const el = document.createElement('textarea');
-    el.value = t;
-    document.body.appendChild(el);
-    el.select();
+  function copyToClipboard(text) {
+    const input = document.createElement('textarea');
+    input.value = text;
+    document.body.appendChild(input);
+    input.select();
     document.execCommand('copy');
-    document.body.removeChild(el);
+    document.body.removeChild(input);
   }
 </script>
 </body></html>`;
