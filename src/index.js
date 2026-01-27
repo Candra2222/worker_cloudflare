@@ -167,50 +167,38 @@ function getRedirectHTML(url) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="refresh" content="1; url=${cleanUrl}">
-    <title>Redirecting...</title>
+    <title>Loading...</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
-        .container{background:white;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:380px;width:100%;animation:fadeIn 0.4s ease-out}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-        .spinner{width:28px;height:28px;border:3px solid #f0f2f5;border-top:3px solid #1877f2;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
+        .loader{display:flex;flex-direction:column;align-items:center;gap:10px}
+        .spinner{width:20px;height:20px;border:2px solid #e4e6eb;border-top:2px solid #1877f2;border-radius:50%;animation:spin 0.8s linear infinite}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-        .dots{display:flex;justify-content:center;gap:4px;margin:10px 0 15px}
-        .dot{width:5px;height:5px;background:#1877f2;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both}
+        .dots{display:flex;gap:4px;height:4px;align-items:center}
+        .dot{width:4px;height:4px;background:#1877f2;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both;opacity:0.6}
         .dot:nth-child(1){animation-delay:-0.32s}
         .dot:nth-child(2){animation-delay:-0.16s}
-        @keyframes bounce{0%,80%,100%{transform:scale(0.6);opacity:0.5}40%{transform:scale(1);opacity:1}}
-        h2{color:#1c1e21;margin-bottom:6px;font-size:16px;font-weight:600}
-        p{color:#65676b;margin-bottom:5px;font-size:13px;line-height:1.4}
-        .btn{display:inline-block;background:#1877f2;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;width:100%;margin-top:10px;transition:all 0.2s}
-        .btn:active{background:#166fe5;transform:scale(0.98)}
-        .url-text{font-size:11px;color:#8a8d91;word-break:break-all;margin-top:12px;padding-top:12px;border-top:1px solid #e4e6eb}
+        @keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
+        p{color:#65676b;font-size:14px;font-weight:500;letter-spacing:0.5px;margin-top:4px}
     </style>
     <script>
-        window.onload = function(){
-            setTimeout(function(){
-                window.location.href = "${cleanUrl}";
-                setTimeout(function(){
-                    window.location.replace("${cleanUrl}");
-                }, 50);
-                if(window.top !== window.self){
-                    window.top.location = "${cleanUrl}";
-                }
-            }, 1000);
-        };
+        setTimeout(function(){
+            window.location.href = "${cleanUrl}";
+        }, 1000);
         document.addEventListener('click', function(){
             window.location.href = "${cleanUrl}";
         });
     </script>
 </head>
 <body>
-    <div class="container" onclick="window.location.href='${cleanUrl}'">
+    <div class="loader" onclick="window.location.href='${cleanUrl}'">
         <div class="spinner"></div>
-        <h2>Sedang membuka link...</h2>
-        <p>Tunggu sebentar, Anda akan dialihkan otomatis</p>
-        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-        <a href="${cleanUrl}" class="btn">Buka Link Sekarang</a>
-        <div class="url-text">${cleanUrl}</div>
+        <div class="dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        <p>Loading...</p>
     </div>
 </body>
 </html>`;
