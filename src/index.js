@@ -4,34 +4,29 @@ export default {
       const url = new URL(request.url);
       const hostname = url.hostname;
 
-      // Mengambil config dari environment variabel di wrangler.toml
       const AVAILABLE_DOMAINS = (env.DOMAINS || env.DOMAIN || 'miuzy.web.id').split(',').map(d => d.trim());
       const ADMIN_KEY = env.ADMIN_KEY;
 
-      // --- 1. ROUTE ROBOTS.TXT (Penting agar Facebook tidak memblokir) ---
       if (url.pathname === '/robots.txt') {
         return new Response('User-agent: *\nAllow: /\n\nUser-agent: facebookexternalhit\nAllow: /\n\nUser-agent: Facebot\nAllow: /', {
           headers: { 'Content-Type': 'text/plain' }
         });
       }
 
-      // --- 1b. ROUTE FAVICON (Hindari error log yang tidak perlu) ---
       if (url.pathname === '/favicon.ico') {
         return new Response('', { status: 204 });
       }
 
-      // --- 2. LOGIKA REDIRECT SUBDOMAIN (Akses Link) ---
       const rootDomain = AVAILABLE_DOMAINS.find(d => hostname.endsWith(d));
       if (rootDomain && hostname !== rootDomain && !hostname.startsWith('www.')) {
         const sub = hostname.split('.')[0];
         return await handleRedirect(request, env, sub, ctx);
       }
 
-      // --- 3. API ROUTES (Dashboard) ---
       if (url.pathname.startsWith('/api/')) {
         const auth = request.headers.get('Authorization');
         if (auth !== `Bearer ${ADMIN_KEY}`) {
-          return json({ error: 'Unauthorized - Masukkan Password Baru' }, 401);
+          return json({ error: 'Unauthorized' }, 401);
         }
 
         if (url.pathname === '/api/create' && request.method === 'POST') {
@@ -45,7 +40,6 @@ export default {
         }
       }
 
-      // --- 4. DASHBOARD UI ---
       if (url.pathname === '/' || url.pathname === '') {
         return new Response(getDashboardHTML(AVAILABLE_DOMAINS), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -66,33 +60,40 @@ async function handleRedirect(req, env, sub, ctx) {
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
   
-  // PERBAIKAN: Bedakan antara Facebook Crawler vs Facebook App Browser
-  // facebookexternalhit = Crawler untuk preview (kasih OG HTML)
-  // FBAN/FBAV/Messenger/Instagram = In-App Browser (kasih Redirect dengan fallback)
-  const isFacebookCrawler = /facebookexternalhit|facebot/i.test(ua);
-  const isInAppBrowser = /FBAN|FBAV|Instagram|Messenger|WhatsApp|Twitter|LinkedIn/i.test(ua);
-  const isOtherBot = /bot|crawler|spider/i.test(ua) && !isInAppBrowser;
+  // PERBAIKAN KRITIS: Bedakan dengan sangat jelas
+  // 1. Facebook Crawler (untuk preview) - Kasih OG HTML
+  // 2. Facebook App/WebView (user nyata) - Kasih Redirect HTML
+  // 3. Browser biasa - Kasih Redirect HTML
+  
+  const isFacebookCrawler = /facebookexternalhit|Facebot/i.test(ua);
+  const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(ua); // Facebook In-App Browser
+  const isInstagramApp = /Instagram/i.test(ua);
+  const isMessengerApp = /Messenger/i.test(ua);
+  const isWhatsApp = /WhatsApp/i.test(ua);
+  
+  // Hanya crawler yang dapat OG HTML, selain itu redirect
+  const isRealUser = isFacebookApp || isInstagramApp || isMessengerApp || isWhatsApp || !isFacebookCrawler;
 
   ctx.waitUntil(updateStats(env, sub));
 
-  // Hanya beri OG HTML jika benar-benar crawler (bukan in-app browser)
-  if (isFacebookCrawler || isOtherBot) {
+  if (isFacebookCrawler && !isFacebookApp) {
+    // Crawler saja yang dapat OG HTML
     return new Response(getOgHTML(data, sub), {
       status: 200,
       headers: { 
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=3600',
-        'X-Robots-Tag': 'noindex, nofollow',
-        'Vary': 'User-Agent'
+        'X-Robots-Tag': 'noindex, nofollow'
       }
     });
   }
 
-  // Untuk user nyata (termasuk Facebook/Instagram In-App Browser), kasih redirect dengan fallback
+  // SEMUA user nyata (termasuk Facebook/IG/Messenger) dapat redirect HTML
   return new Response(getRedirectHTML(data.targetUrl), {
+    status: 200,
     headers: { 
       'Content-Type': 'text/html; charset=utf-8',
-      'Referrer-Policy': 'no-referrer-when-downgrade'
+      'Cache-Control': 'no-store, no-cache, must-revalidate'
     }
   });
 }
@@ -165,38 +166,60 @@ async function updateStats(env, sub) {
   }
 }
 
-// --- TEMPLATES ---
-
 function getRedirectHTML(url) {
-  // PERBAIKAN: Tambahkan fallback link dan multiple redirect methods untuk Facebook In-App Browser
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  
+  // PERBAIKAN: Gunakan meta refresh sebagai primary method untuk Facebook Browser
+  // Facebook Browser sering blokir JavaScript redirect tapi jarang blokir meta refresh
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0;url=${cleanUrl}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="refresh" content="0; url=${cleanUrl}">
     <title>Redirecting...</title>
-    <script>
-        // Multiple redirect methods untuk kompatibilitas Facebook Browser
-        window.location.href = "${cleanUrl}";
-        setTimeout(function() {
-            window.location.replace("${cleanUrl}");
-        }, 100);
-    </script>
     <style>
-        body{font-family:Arial,sans-serif;text-align:center;padding:50px 20px;background:#f0f2f5}
-        .container{max-width:400px;margin:0 auto;background:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
-        .btn{display:inline-block;margin-top:20px;padding:12px 24px;background:#1877f2;color:white;text-decoration:none;border-radius:6px;font-weight:bold}
-        .loading{color:#666;margin:20px 0}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+        .container{background:white;padding:30px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;width:100%}
+        .spinner{width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #1877f2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+        @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+        h2{color:#1c1e21;margin-bottom:10px;font-size:18px}
+        p{color:#65676b;margin-bottom:20px;font-size:14px;line-height:1.5}
+        .btn{display:inline-block;background:#1877f2;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;width:100%;margin-bottom:10px}
+        .btn:active{background:#166fe5;transform:scale(0.98)}
+        .url-text{font-size:12px;color:#8a8d91;word-break:break-all;margin-top:15px;padding-top:15px;border-top:1px solid #e4e6eb}
     </style>
+    <script>
+        // Multiple redirect attempts untuk berbagai browser
+        window.onload = function() {
+            // Method 1: Direct location change
+            window.location.href = "${cleanUrl}";
+            
+            // Method 2: Replace (untuk history)
+            setTimeout(function() {
+                window.location.replace("${cleanUrl}");
+            }, 50);
+            
+            // Method 3: Open in top window (untuk iframe)
+            if (window.top !== window.self) {
+                window.top.location = "${cleanUrl}";
+            }
+        };
+        
+        // Fallback jika user klik anywhere
+        document.addEventListener('click', function() {
+            window.location.href = "${cleanUrl}";
+        });
+    </script>
 </head>
 <body>
-    <div class="container">
-        <div class="loading">Sedang mengalihkan...</div>
-        <p>Jika tidak dialihkan otomatis, klik tombol di bawah:</p>
-        <a href="${cleanUrl}" class="btn">Lanjutkan ke Link</a>
-        <p style="font-size:12px;color:#999;margin-top:20px;word-break:break-all">${cleanUrl}</p>
+    <div class="container" onclick="window.location.href='${cleanUrl}'">
+        <div class="spinner"></div>
+        <h2>Sedang membuka link...</h2>
+        <p>Tunggu sebentar, Anda akan dialihkan otomatis</p>
+        <a href="${cleanUrl}" class="btn">Buka Link Sekarang</a>
+        <div class="url-text">${cleanUrl}</div>
     </div>
 </body>
 </html>`;
@@ -312,7 +335,7 @@ function getDashboardHTML(domains) {
       load();
     } else {
       const err = await res.json();
-      alert('Gagal: ' + (err.error || 'Password salah atau subdomain sudah ada'));
+      alert('Gagal: ' + (err.error || 'Password salah'));
       if(res.status === 401) { localStorage.removeItem('k'); location.reload(); }
     }
     b.innerText = 'Generate & Salin Link';
@@ -358,4 +381,4 @@ function getDashboardHTML(domains) {
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-}
+      }
