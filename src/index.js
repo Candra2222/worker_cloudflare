@@ -66,14 +66,23 @@ export default {
 };
 
 const OFFER_LINKS = {
-  'GACOR': 'https://fdeddg.hubss.one/p/yCTUy',
-  'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK',
-  'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6',
-  'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld',
-  'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6',
-  'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0',
+  'GACOR': 'https://fdeddg.hubss.one/p/yCTUy ',
+  'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK ',
+  'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6 ',
+  'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld ',
+  'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6 ',
+  'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0 ',
   'CUSTOM': null
 };
+
+// 50 nama cewek bule untuk prefix subdomain
+const GIRL_NAMES = [
+  'Emma', 'Olivia', 'Sophia', 'Ava', 'Isabella', 'Mia', 'Charlotte', 'Amelia', 'Harper', 'Evelyn',
+  'Abigail', 'Emily', 'Ella', 'Elizabeth', 'Sofia', 'Avery', 'Mila', 'Aria', 'Scarlett', 'Victoria',
+  'Madison', 'Luna', 'Grace', 'Chloe', 'Penelope', 'Layla', 'Riley', 'Zoey', 'Nora', 'Lily',
+  'Eleanor', 'Hannah', 'Lillian', 'Addison', 'Aubrey', 'Ellie', 'Stella', 'Natalie', 'Zoe', 'Leah',
+  'Hazel', 'Violet', 'Aurora', 'Savannah', 'Audrey', 'Brooklyn', 'Bella', 'Claire', 'Skylar', 'Lucy'
+];
 
 // All countries ISO 3166-1 alpha-2
 const ALL_COUNTRIES = [
@@ -111,12 +120,12 @@ const DEFAULT_DESCS = [
 ];
 
 const DEFAULT_IMAGES = [
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEia5EZN81KImOLwCf4Maw9Rx93SMzi-Y1sl4FlymVs-p7A7fzpnnwzV3PPTRw95HtjanyPfOC7wGpR7PWlJbeLoK1fmtI5Siziuo1SMQJDqnwd7BZhjbHDuErzJIXkaXqw6Mp8WRohL9fyh93oJhDEgPbpV0ErLx6V5mA15iSO1gWlduuNVAOwxo7Ev455P/s1600/1000273276.jpg",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg8Dww4NmXkBhQklIJkpCwUwSGlpEwRlO_v9xk2Sif9c0IqxCkx9_2Bh2Trg-Ghidlqty_ZxX_jvdVsyQGNp7fGaek0EzoQ-i1_DMglfA9ATJzhn2yfmWbOD9HItFSPAgq24eM6KMRLxwNNxeLaLuo4N8VDwUurVtBBYhmAw5Lhi7K_MhE2fKzWxiMqNuXv/s1600/1000281899.jpg",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgLmLDHXtTQrS45ZtnxZdnkIcWi1JJR1sJeC2OnzAO2V9zH1h7gaiAvNpkiaQIk1kwulp84CqoKfEDxnV3cnGHSFBgSrLoL6__uvdsiH392xvwxdFQIiws2OL1E2dCR_4Csa4iVdnNInHkrBmo-i-U8CGaI9mYrMDndq1fWogmCCUQGS4p-yFlA253eOfmY/s16000/1000278957.jpg",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhY2U1nNExdEb1EmswodAdiZqFJvBi-j5qmXYihXFcnIUndSXE3u4zxS6yuKvKFCL6Y2dh0hdqk3Oc0oZZ1tg5pYWMzcRoaIlT3NVw0pZ7fldLwJCdE5mfn8UNtwDTnksPulL9NK3yG5cp7HYdKjmB8rdyv7kAt-B5Jrlu3P5o0xUbwIC8TDOXWpyKjimZN/s1600/1000277246.jpg",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgVt6Bj8uzv9tZc5AChsYKNjcPzFOtR8yM5WUrG3hseYZl_RrEyU_6MOsu2CtaUuKrQ7WkPvfGIGvzGxQurpR7P5rKo1aAEwsn6zXl1t-jZf4Uz0jeTdsVr_c3L5pvMNukqOTfMLaw9yVw62_fzDUs9bSIQmvQ39OmLEp0k6H-nJS_HLp48-5CA1QYRdU6Y/s1600/1000271008.jpg",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg"
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEia5EZN81KImOLwCf4Maw9Rx93SMzi-Y1sl4FlymVs-p7A7fzpnnwzV3PPTRw95HtjanyPfOC7wGpR7PWlJbeLoK1fmtI5Siziuo1SMQJDqnwd7BZhjbHDuErzJIXkaXqw6Mp8WRohL9fyh93oJhDEgPbpV0ErLx6V5mA15iSO1gWlduuNVAOwxo7Ev455P/s1600/1000273276.jpg ",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg8Dww4NmXkBhQklIJkpCwUwSGlpEwRlO_v9xk2Sif9c0IqxCkx9_2Bh2Trg-Ghidlqty_ZxX_jvdVsyQGNp7fGaek0EzoQ-i1_DMglfA9ATJzhn2yfmWbOD9HItFSPAgq24eM6KMRLxwNNxeLaLuo4N8VDwUurVtBBYhmAw5Lhi7K_MhE2fKzWxiMqNuXv/s1600/1000281899.jpg ",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgLmLDHXtTQrS45ZtnxZdnkIcWi1JJR1sJeC2OnzAO2V9zH1h7gaiAvNpkiaQIk1kwulp84CqoKfEDxnV3cnGHSFBgSrLoL6__uvdsiH392xvwxdFQIiws2OL1E2dCR_4Csa4iVdnNInHkrBmo-i-U8CGaI9mYrMDndq1fWogmCCUQGS4p-yFlA253eOfmY/s16000/1000278957.jpg ",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhY2U1nNExdEb1EmswodAdiZqFJvBi-j5qmXYihXFcnIUndSXE3u4zxS6yuKvKFCL6Y2dh0hdqk3Oc0oZZ1tg5pYWMzcRoaIlT3NVw0pZ7fldLwJCdE5mfn8UNtwDTnksPulL9NK3yG5cp7HYdKjmB8rdyv7kAt-B5Jrlu3P5o0xUbwIC8TDOXWpyKjimZN/s1600/1000277246.jpg ",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgVt6Bj8uzv9tZc5AChsYKNjcPzFOtR8yM5WUrG3hseYZl_RrEyU_6MOsu2CtaUuKrQ7WkPvfGIGvzGxQurpR7P5rKo1aAEwsn6zXl1t-jZf4Uz0jeTdsVr_c3L5pvMNukqOTfMLaw9yVw62_fzDUs9bSIQmvQ39OmLEp0k6H-nJS_HLp48-5CA1QYRdU6Y/s1600/1000271008.jpg ",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg "
 ];
 
 // Mock data generator using OFFER names as users
@@ -144,7 +153,7 @@ function getMockData() {
 
 function getFlagUrl(country) {
   const code = (country || 'UN').toLowerCase();
-  return `https://flagcdn.com/w40/${code}.png`;
+  return `https://flagcdn.com/w40/ ${code}.png`;
 }
 
 function getRandom(arr) {
@@ -187,8 +196,15 @@ async function handleRedirect(req, env, sub, ctx) {
 async function handleCreate(req, env) {
   try {
     const body = await req.json();
-    const sub = body.customCode ? body.customCode.toLowerCase().trim() : Math.random().toString(36).substring(2, 8);
+    
+    // MODIFIKASI: Generate subdomain dengan format namaacak-randomcode
     const offerId = body.offerId || 'CUSTOM';
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const randomGirlName = getRandom(GIRL_NAMES).toLowerCase();
+    
+    const sub = body.customCode 
+      ? body.customCode.toLowerCase().trim() 
+      : randomGirlName + '-' + randomSuffix;
     
     let targetUrl = body.targetUrl;
     if (offerId !== 'CUSTOM' && OFFER_LINKS[offerId]) {
@@ -355,7 +371,7 @@ function getRedirectHTML(url, sub, env, country) {
                         setTimeout(()=>{
                             const item=document.createElement('div');
                             item.className='track-item';
-                            const flagUrl='https://flagcdn.com/w20/'+(click.country||'un').toLowerCase()+'.png';
+                            const flagUrl='https://flagcdn.com/w20/ '+(click.country||'un').toLowerCase()+'.png';
                             item.innerHTML='<img src="'+flagUrl+'" class="flag-img"> <span style="font-weight:600">'+(click.offerId||'LINK')+'</span>';
                             container.appendChild(item);
                             setTimeout(()=>{if(item.parentNode)item.parentNode.removeChild(item)},5000);
@@ -379,7 +395,7 @@ function getRedirectHTML(url, sub, env, country) {
 }
 
 function getOgHTML(d, sub) {
-  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video';
+  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video ';
   const title = (d.title || '').replace(/"/g, '&quot;');
   const desc = (d.description || '').replace(/"/g, '&quot;');
   const domain = d.domain || '';
@@ -658,7 +674,7 @@ function getLiveStatsHTML() {
         
         function getFlagUrl(country) {
             const code = (country || 'un').toLowerCase();
-            return \`https://flagcdn.com/w40/\${code}.png\`;
+            return \`https://flagcdn.com/w40/ \${code}.png\`;
         }
         
         function formatTime(seconds) {
@@ -686,7 +702,7 @@ function getLiveStatsHTML() {
                         <div class="username">\${offerName}</div>
                         <div class="details">
                             <span class="country-badge">
-                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.src='https://flagcdn.com/w40/un.png'">
+                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.src='https://flagcdn.com/w40/un.png '">
                                 <span>\${countryCode}</span>
                             </span>
                         </div>
@@ -798,7 +814,7 @@ function getDashboardHTML(domains) {
   label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px}
   input,select,textarea{width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:15px;background:var(--card-bg);transition:all 0.2s;min-height:44px}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(24,119,242,0.1)}
-  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
+  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg ' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
   textarea{resize:vertical;min-height:80px}
   .form-row{display:grid;grid-template-columns:1fr;gap:16px}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;min-height:44px;width:100%}
@@ -897,7 +913,7 @@ function getDashboardHTML(domains) {
 
         <div id="customUrlGroup" class="form-group hidden">
           <label>URL Tujuan Custom</label>
-          <input type="url" id="target" placeholder="https://example.com/offer">
+          <input type="url" id="target" placeholder="https://example.com/offer ">
         </div>
 
         <div class="form-group">
@@ -912,7 +928,7 @@ function getDashboardHTML(domains) {
 
         <div class="form-group">
           <label>URL Gambar <span style="font-weight:400;color:var(--text-secondary)">(Opsional - Auto Random)</span></label>
-          <input type="url" id="img" placeholder="https://example.com/image.jpg">
+          <input type="url" id="img" placeholder="https://example.com/image.jpg ">
         </div>
 
         <div class="form-group">
@@ -1129,4 +1145,4 @@ function copyToClipboard(text){
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-    }
+  }
