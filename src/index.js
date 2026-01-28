@@ -41,6 +41,15 @@ export default {
         if (url.pathname === '/api/recent-clicks') {
           return handleRecentClicks(env, url.searchParams.get('sub'));
         }
+        if (url.pathname === '/api/live-clicks') {
+          return handleLiveClicks(env);
+        }
+      }
+
+      if (url.pathname === '/live') {
+        return new Response(getLiveStatsHTML(), {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        });
       }
 
       if (url.pathname === '/' || url.pathname === '') {
@@ -91,6 +100,17 @@ const DEFAULT_IMAGES = [
   "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg"
 ];
 
+// Flag URLs using flagcdn.com (free CDN for country flags)
+function getFlagImg(country) {
+  const code = (country || 'UN').toLowerCase();
+  return `https://flagcdn.com/w40/${code}.png`;
+}
+
+function getFlagSpan(country) {
+  const flagUrl = getFlagImg(country);
+  return `<img src="${flagUrl}" alt="${country}" class="flag-img" onerror="this.style.display='none'">`;
+}
+
 function getRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -119,7 +139,7 @@ async function handleRedirect(req, env, sub, ctx) {
     });
   }
 
-  return new Response(getRedirectHTML(data.targetUrl, sub, env), {
+  return new Response(getRedirectHTML(data.targetUrl, sub, env, country), {
     status: 200,
     headers: { 
       'Content-Type': 'text/html; charset=utf-8',
@@ -200,6 +220,38 @@ async function handleRecentClicks(env, sub) {
   }
 }
 
+async function handleLiveClicks(env) {
+  try {
+    const list = await env.LINKS_DB.list({ prefix: 'clicks:' });
+    const allClicks = [];
+    
+    for (const key of list.keys) {
+      const val = await env.LINKS_DB.get(key.name);
+      if (val) {
+        const clicks = JSON.parse(val);
+        const sub = key.name.replace('clicks:', '');
+        clicks.forEach(c => {
+          allClicks.push({
+            ...c,
+            subdomain: sub,
+            timeAgo: Math.floor((Date.now() - c.time) / 1000)
+          });
+        });
+      }
+    }
+    
+    const fiveMinutesAgo = Date.now() - 300000;
+    const recentClicks = allClicks
+      .filter(c => c.time > fiveMinutesAgo)
+      .sort((a, b) => b.time - a.time)
+      .slice(0, 50);
+    
+    return json({ success: true, data: recentClicks });
+  } catch (err) {
+    return json({ error: err.message }, 500);
+  }
+}
+
 async function updateStats(env, sub, country, offerId) {
   try {
     const raw = await env.LINKS_DB.get(`link:${sub}`);
@@ -219,8 +271,9 @@ async function updateStats(env, sub, country, offerId) {
   }
 }
 
-function getRedirectHTML(url, sub, env) {
+function getRedirectHTML(url, sub, env, country) {
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const flagHtml = getFlagSpan(country);
   
   return `<!DOCTYPE html>
 <html lang="id">
@@ -240,9 +293,10 @@ function getRedirectHTML(url, sub, env) {
         .dot:nth-child(1){animation-delay:-0.32s}.dot:nth-child(2){animation-delay:-0.16s}
         @keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
         p{color:#65676b;font-size:14px;font-weight:500;letter-spacing:0.5px;margin-top:4px}
-        .floating-tracker{position:fixed;bottom:10px;right:10px;width:140px;height:100%;pointer-events:none;z-index:5;overflow:hidden}
-        .track-item{position:absolute;right:0;font-size:10px;background:rgba(24,119,242,0.85);color:white;padding:3px 8px;border-radius:12px;white-space:nowrap;opacity:0;animation:floatUp 4s ease-out forwards;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
-        @keyframes floatUp{0%{transform:translateY(0) translateX(0);opacity:0}10%{transform:translateY(-20px) translateX(-5px);opacity:0.9}90%{transform:translateY(-80vh) translateX(-15px);opacity:0.6}100%{transform:translateY(-100vh) translateX(-20px);opacity:0}}
+        .floating-tracker{position:fixed;bottom:10px;right:10px;width:180px;height:100%;pointer-events:none;z-index:5;overflow:hidden}
+        .track-item{position:absolute;right:0;font-size:12px;background:rgba(24,119,242,0.9);color:white;padding:6px 12px;border-radius:20px;white-space:nowrap;opacity:0;animation:floatUp 4s ease-out forwards;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+        .flag-img{width:20px;height:14px;border-radius:2px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+        @keyframes floatUp{0%{transform:translateY(0) translateX(0);opacity:0}10%{transform:translateY(-20px) translateX(-5px);opacity:0.95}90%{transform:translateY(-80vh) translateX(-15px);opacity:0.7}100%{transform:translateY(-100vh) translateX(-20px);opacity:0}}
     </style>
     <script>
         setTimeout(()=>window.location.href="${cleanUrl}",1000);
@@ -259,7 +313,8 @@ function getRedirectHTML(url, sub, env) {
                         setTimeout(()=>{
                             const item=document.createElement('div');
                             item.className='track-item';
-                            item.innerHTML='<span>🌍</span> '+(click.offerId||'LINK')+' • '+click.country;
+                            const flagUrl='https://flagcdn.com/w40/'+(click.country||'un').toLowerCase()+'.png';
+                            item.innerHTML='<img src="'+flagUrl+'" style="width:20px;height:14px;border-radius:2px;object-fit:cover"> <span style="font-weight:600">'+(click.offerId||'LINK')+'</span>';
                             container.appendChild(item);
                             setTimeout(()=>item.remove(),4000);
                         },idx*800);
@@ -296,6 +351,427 @@ function getOgHTML(d, sub) {
 </head><body><h1>${title}</h1><p>${desc}</p><img src="${img}" alt="${title}"></body></html>`;
 }
 
+function getLiveStatsHTML() {
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Live Clicks</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 100;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 71, 87, 0.9);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+        
+        .stats-row {
+            position: absolute;
+            width: 100%;
+            animation: scrollUp 30s linear infinite;
+        }
+        
+        .stats-row:hover {
+            animation-play-state: paused;
+        }
+        
+        @keyframes scrollUp {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+        
+        .click-item {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .click-item:hover {
+            transform: translateX(10px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .left-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .username {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3436;
+            letter-spacing: 0.3px;
+        }
+        
+        .details {
+            font-size: 13px;
+            color: #636e72;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .country-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .flag-img {
+            width: 24px;
+            height: 16px;
+            border-radius: 3px;
+            object-fit: cover;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .right-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .device-icon {
+            width: 35px;
+            height: 35px;
+            background: rgba(118, 75, 162, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .time-badge {
+            font-size: 12px;
+            color: #b2bec3;
+            font-weight: 500;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        .offer-tag {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: white;
+            margin-top: 100px;
+            opacity: 0.8;
+        }
+        
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        /* Color coding for different offers */
+        .border-GACOR { border-left-color: #00b894 !important; }
+        .border-DENNY { border-left-color: #fdcb6e !important; }
+        .border-RONGGOLAWE { border-left-color: #e17055 !important; }
+        .border-PENTOLKOREK { border-left-color: #74b9ff !important; }
+        .border-KLOWOR { border-left-color: #a29bfe !important; }
+        .border-DENNOK { border-left-color: #fd79a8 !important; }
+        .border-CUSTOM { border-left-color: #636e72 !important; }
+        .border-UNKNOWN { border-left-color: #b2bec3 !important; }
+        
+        @media (max-width: 768px) {
+            .header h1 { font-size: 20px; }
+            .click-item { padding: 12px 16px; }
+            .avatar { width: 40px; height: 40px; font-size: 12px; }
+            .username { font-size: 14px; }
+            .offer-tag { display: none; }
+            .flag-img { width: 20px; height: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            Real-Time Activity
+            <span class="live-indicator">
+                <span class="pulse-dot"></span>
+                LIVE
+            </span>
+        </h1>
+    </div>
+    
+    <div class="container" id="container">
+        <div class="stats-row" id="statsRow">
+            <!-- Items will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const offerColors = {
+            'GACOR': '#00b894',
+            'DENNY': '#fdcb6e',
+            'RONGGOLAWE': '#e17055',
+            'PENTOLKOREK': '#74b9ff',
+            'KLOWOR': '#a29bfe',
+            'DENNOK': '#fd79a8',
+            'CUSTOM': '#636e72',
+            'UNKNOWN': '#b2bec3'
+        };
+        
+        let allClicks = [];
+        let isPaused = false;
+        
+        function getFlagUrl(country) {
+            const code = (country || 'un').toLowerCase();
+            return \`https://flagcdn.com/w40/\${code}.png\`;
+        }
+        
+        function formatTime(seconds) {
+            if (seconds < 60) return \`\${seconds}s ago\`;
+            if (seconds < 3600) return \`\${Math.floor(seconds/60)}m ago\`;
+            return \`\${Math.floor(seconds/3600)}h ago\`;
+        }
+        
+        function createClickItem(data) {
+            const div = document.createElement('div');
+            div.className = \`click-item border-\${data.offerId || 'UNKNOWN'}\`;
+            
+            const initials = data.subdomain.substring(0, 2).toUpperCase();
+            const timeAgo = data.timeAgo || Math.floor((Date.now() - data.time) / 1000);
+            const flagUrl = getFlagUrl(data.country);
+            const offerColor = offerColors[data.offerId] || offerColors['UNKNOWN'];
+            const countryCode = (data.country || 'UN').toUpperCase();
+            
+            div.innerHTML = \`
+                <div class="left-section">
+                    <div class="avatar" style="background: \${offerColor}">
+                        \${initials}
+                    </div>
+                    <div class="info">
+                        <div class="username">\${data.subdomain.toUpperCase()}</div>
+                        <div class="details">
+                            <span class="country-badge">
+                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.style.display='none'">
+                                <span>\${countryCode}</span>
+                            </span>
+                            <span>•</span>
+                            <span style="color: \${offerColor}; font-weight: 600">\${data.offerId || 'LINK'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="right-section">
+                    <div class="device-icon">📱</div>
+                    <span class="time-badge">\${formatTime(timeAgo)}</span>
+                </div>
+            \`;
+            
+            return div;
+        }
+        
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/live-clicks');
+                const result = await res.json();
+                
+                if (result.success && result.data) {
+                    // Merge new data, avoiding duplicates
+                    const existing = new Set(allClicks.map(c => c.time + c.subdomain));
+                    const newItems = result.data.filter(c => !existing.has(c.time + c.subdomain));
+                    
+                    if (newItems.length > 0) {
+                        allClicks = [...newItems, ...allClicks].slice(0, 50);
+                        render();
+                    }
+                    
+                    // Update time only
+                    updateTimes();
+                }
+            } catch (e) {
+                console.error('Fetch error:', e);
+            }
+        }
+        
+        function updateTimes() {
+            const items = document.querySelectorAll('.time-badge');
+            items.forEach((item, idx) => {
+                if (allClicks[idx]) {
+                    const seconds = Math.floor((Date.now() - allClicks[idx].time) / 1000);
+                    item.textContent = formatTime(seconds);
+                }
+            });
+        }
+        
+        function render() {
+            const container = document.getElementById('statsRow');
+            container.innerHTML = '';
+            
+            // Duplicate the array multiple times for seamless infinite scroll
+            const duplicated = [...allClicks, ...allClicks, ...allClicks];
+            
+            duplicated.forEach((click, index) => {
+                const clickData = {...click};
+                // Adjust time for duplicated items
+                if (index >= allClicks.length) {
+                    const originalTime = clickData.timeAgo || 0;
+                    clickData.timeAgo = (index % allClicks.length) + originalTime + (Math.floor(index / allClicks.length) * allClicks.length);
+                }
+                const item = createClickItem(clickData);
+                container.appendChild(item);
+            });
+            
+            // If no data, show placeholder
+            if (allClicks.length === 0) {
+                container.innerHTML = \`
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                        </svg>
+                        <p>Waiting for clicks...</p>
+                        <p style="font-size: 14px; margin-top: 10px; opacity: 0.7">Data will appear automatically</p>
+                    </div>
+                \`;
+            }
+        }
+        
+        // Event listeners for pause on hover
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('container');
+            
+            container.addEventListener('mouseenter', () => {
+                isPaused = true;
+            });
+            
+            container.addEventListener('mouseleave', () => {
+                isPaused = false;
+            });
+            
+            // Initial fetch
+            fetchData();
+            
+            // Fetch every 3 seconds
+            setInterval(fetchData, 3000);
+            
+            // Update time badges every second
+            setInterval(updateTimes, 1000);
+        });
+    </script>
+</body>
+</html>`;
+}
+
 function getDashboardHTML(domains) {
   const options = domains.map(d => `<option value="${d}">${d}</option>`).join('');
   const offerOptions = Object.keys(OFFER_LINKS)
@@ -330,7 +806,7 @@ function getDashboardHTML(domains) {
   
   .app-container{max-width:1400px;margin:0 auto;display:flex;min-height:100vh}
   
-  /* SIDEBAR - Desktop only */
+  /* SIDEBAR */
   .sidebar{
     width:260px;
     background:var(--card-bg);
@@ -488,7 +964,7 @@ function getDashboardHTML(domains) {
     width:auto;
   }
   
-  /* NAV BUTTONS - TAMBAHAN */
+  /* NAV BUTTONS */
   .nav-buttons{
     display:flex;
     gap:12px;
@@ -650,6 +1126,18 @@ function getDashboardHTML(domains) {
     transition:all 0.3s;
   }
   .toast.show{transform:translateY(0);opacity:1}
+  
+  /* LIVE BUTTON */
+  .btn-live {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin-top: 12px;
+    width: 100%;
+  }
+  .btn-live:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+  }
 </style>
 </head>
 <body>
@@ -748,6 +1236,11 @@ function getDashboardHTML(domains) {
             Lihat Riwayat Link
           </button>
         </div>
+        
+        <!-- BUTTON LIVE STATS -->
+        <button class="btn btn-live" onclick="window.open('/live', '_blank')">
+          📊 Lihat Live Real-Time Clicks
+        </button>
       </div>
     </section>
 
@@ -766,6 +1259,9 @@ function getDashboardHTML(domains) {
         <div style="margin-bottom:20px;">
           <button class="btn btn-secondary btn-sm" onclick="showSection('create')" style="width:auto">
             ← Kembali ke Buat Link
+          </button>
+          <button class="btn btn-live btn-sm" onclick="window.open('/live', '_blank')" style="width:auto; margin-left:8px">
+            📊 Live Stats
           </button>
         </div>
         
@@ -957,4 +1453,4 @@ window.addEventListener('resize',()=>{
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-          }
+        }
