@@ -75,6 +75,25 @@ const OFFER_LINKS = {
   'CUSTOM': null
 };
 
+// All countries ISO 3166-1 alpha-2
+const ALL_COUNTRIES = [
+  'US', 'CA', 'GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'CH', 'AT', 'SE', 'NO', 'DK', 'FI', 'PL', 
+  'CZ', 'HU', 'RO', 'BG', 'HR', 'SI', 'SK', 'LT', 'LV', 'EE', 'IE', 'PT', 'GR', 'CY', 'MT', 'LU', 
+  'IS', 'AL', 'BA', 'MK', 'MD', 'UA', 'BY', 'RU', 'TR', 'GE', 'AZ', 'AM', 'KZ', 'UZ', 'TM', 'KG', 
+  'TJ', 'CN', 'JP', 'KR', 'KP', 'TW', 'HK', 'MO', 'SG', 'MY', 'TH', 'ID', 'PH', 'VN', 'LA', 'KH', 
+  'MM', 'BN', 'IN', 'PK', 'BD', 'LK', 'NP', 'BT', 'MV', 'AF', 'IR', 'IQ', 'SY', 'LB', 'JO', 'IL', 
+  'PS', 'SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW', 'EG', 'LY', 'TN', 'DZ', 'MA', 'MR', 'ML', 'NE', 
+  'TD', 'SD', 'ER', 'DJ', 'ET', 'SO', 'KE', 'UG', 'TZ', 'RW', 'BI', 'MW', 'MZ', 'ZM', 'ZW', 'BW', 
+  'NA', 'ZA', 'LS', 'SZ', 'MG', 'KM', 'MU', 'SC', 'CV', 'GW', 'GQ', 'ST', 'GA', 'CG', 'CD', 'AO', 
+  'CM', 'CF', 'NG', 'BJ', 'TG', 'GH', 'CI', 'LR', 'SL', 'GN', 'GM', 'SN', 'BF', 'NZ', 'AU', 'PG', 
+  'FJ', 'SB', 'VU', 'NC', 'PF', 'WS', 'TO', 'KI', 'NR', 'TV', 'FM', 'MH', 'PW', 'AS', 'GU', 'MP', 
+  'PR', 'VI', 'GL', 'AX', 'FO', 'SJ', 'GF', 'GP', 'MQ', 'YT', 'RE', 'PM', 'BL', 'MF', 'WF', 'CK', 
+  'NU', 'TK', 'PN', 'SH', 'GS', 'IO', 'AQ', 'BV', 'HM', 'CC', 'CX', 'NF', 'UM', 'AI', 'AG', 'AR', 
+  'AW', 'BS', 'BB', 'BZ', 'BM', 'BO', 'BQ', 'BR', 'VG', 'KY', 'CL', 'CO', 'CR', 'CU', 'CW', 'DM', 
+  'DO', 'EC', 'SV', 'FK', 'GF', 'GD', 'GT', 'GY', 'HT', 'HN', 'JM', 'MX', 'MS', 'NI', 'PA', 'PY', 
+  'PE', 'PR', 'SX', 'GS', 'SR', 'TT', 'TC', 'UY', 'VE', 'UN'
+];
+
 const DEFAULT_TITLES = [
   "HI! I'M ANGEL - ON LIVE SHOWS!",
   "HI! I'M MONA - ON LIVE SHOWS!",
@@ -100,29 +119,30 @@ const DEFAULT_IMAGES = [
   "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg"
 ];
 
-// Mock data generator for demo purposes
+// Mock data generator using OFFER names as users
 function getMockData() {
-  const users = ['PETUALANG01', 'GROCK', 'GOBAYARUTANG', 'ANDIKA12', 'SLAMET88', 'BUDI99', 'JOKO123', 'ANI2024'];
-  const countries = ['US', 'UA', 'RO', 'IN', 'ID', 'GB', 'DE', 'FR', 'BR', 'JP'];
-  const offers = ['GACOR', 'DENNY', 'RONGGOLAWE', 'PENTOLKOREK', 'KLOWOR', 'DENNOK'];
-  
+  const offers = Object.keys(OFFER_LINKS).filter(k => k !== 'CUSTOM');
   const mockClicks = [];
   const now = Date.now();
   
-  for (let i = 0; i < 15; i++) {
+  // Generate 20 mock clicks with offer names as users
+  for (let i = 0; i < 20; i++) {
+    const offer = offers[Math.floor(Math.random() * offers.length)];
+    const country = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
+    
     mockClicks.push({
-      subdomain: users[Math.floor(Math.random() * users.length)],
-      country: countries[Math.floor(Math.random() * countries.length)],
-      offerId: offers[Math.floor(Math.random() * offers.length)],
-      time: now - (i * 5000), // 5 seconds interval
-      timeAgo: i * 5
+      subdomain: offer,      // Nama offer sebagai user
+      country: country,       // Random country dari all countries
+      offerId: offer,         // Sama dengan subdomain
+      time: now - (i * 3000), // Interval 3 detik
+      timeAgo: i * 3
     });
   }
   
   return mockClicks;
 }
 
-function getFlagImg(country) {
+function getFlagUrl(country) {
   const code = (country || 'UN').toLowerCase();
   return `https://flagcdn.com/w40/${code}.png`;
 }
@@ -247,9 +267,10 @@ async function handleLiveClicks(env) {
         const clicks = JSON.parse(val);
         const sub = key.name.replace('clicks:', '');
         clicks.forEach(c => {
+          // Jika ada data real, gunakan offerId sebagai display name
           allClicks.push({
             ...c,
-            subdomain: sub,
+            subdomain: c.offerId || sub, // Prioritaskan offerId sebagai nama tampilan
             timeAgo: Math.floor((Date.now() - c.time) / 1000)
           });
         });
@@ -262,15 +283,14 @@ async function handleLiveClicks(env) {
       .sort((a, b) => b.time - a.time)
       .slice(0, 50);
     
-    // Jika data kosong, gunakan mock data untuk demo
+    // Jika tidak ada data real, gunakan mock data dengan nama Offer
     if (recentClicks.length === 0) {
       recentClicks = getMockData();
     }
     
-    return json({ success: true, data: recentClicks, isMock: recentClicks.length === 0 });
+    return json({ success: true, data: recentClicks });
   } catch (err) {
-    // Jika error, return mock data agar UI tetap muncul
-    return json({ success: true, data: getMockData(), isMock: true, error: err.message });
+    return json({ success: true, data: getMockData() });
   }
 }
 
@@ -295,7 +315,7 @@ async function updateStats(env, sub, country, offerId) {
 
 function getRedirectHTML(url, sub, env, country) {
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  const flagUrl = getFlagImg(country);
+  const flagUrl = getFlagUrl(country);
   
   return `<!DOCTYPE html>
 <html lang="id">
@@ -456,7 +476,7 @@ function getLiveStatsHTML() {
         .stats-track {
             position: absolute;
             width: 100%;
-            animation: scrollUp 25s linear infinite;
+            animation: scrollUp 20s linear infinite;
             will-change: transform;
         }
         
@@ -513,7 +533,7 @@ function getLiveStatsHTML() {
             justify-content: center;
             color: white;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 14px;
             flex-shrink: 0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             border: 2px solid rgba(255,255,255,0.3);
@@ -527,10 +547,10 @@ function getLiveStatsHTML() {
         }
         
         .username {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
             color: #2d3436;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -590,33 +610,20 @@ function getLiveStatsHTML() {
             text-align: right;
         }
         
-        /* Color coding for different offers */
-        .border-GACOR { border-left-color: #00b894 !important; background: linear-gradient(90deg, rgba(0,184,148,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-DENNY { border-left-color: #fdcb6e !important; background: linear-gradient(90deg, rgba(253,203,110,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-RONGGOLAWE { border-left-color: #e17055 !important; background: linear-gradient(90deg, rgba(225,112,85,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-PENTOLKOREK { border-left-color: #74b9ff !important; background: linear-gradient(90deg, rgba(116,185,255,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-KLOWOR { border-left-color: #a29bfe !important; background: linear-gradient(90deg, rgba(162,155,254,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-DENNOK { border-left-color: #fd79a8 !important; background: linear-gradient(90deg, rgba(253,121,168,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        /* Color coding sesuai Offer */
+        .border-GACOR { border-left-color: #00b894 !important; background: linear-gradient(90deg, rgba(0,184,148,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-DENNY { border-left-color: #fdcb6e !important; background: linear-gradient(90deg, rgba(253,203,110,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-RONGGOLAWE { border-left-color: #e17055 !important; background: linear-gradient(90deg, rgba(225,112,85,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-PENTOLKOREK { border-left-color: #74b9ff !important; background: linear-gradient(90deg, rgba(116,185,255,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-KLOWOR { border-left-color: #a29bfe !important; background: linear-gradient(90deg, rgba(162,155,254,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-DENNOK { border-left-color: #fd79a8 !important; background: linear-gradient(90deg, rgba(253,121,168,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
         .border-CUSTOM { border-left-color: #636e72 !important; }
         .border-UNKNOWN { border-left-color: #b2bec3 !important; }
-        
-        .debug-info {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            z-index: 1000;
-            display: none;
-        }
         
         @media (max-width: 480px) {
             .header h1 { font-size: 20px; }
             .click-item { padding: 12px 14px; }
-            .avatar { width: 38px; height: 38px; font-size: 11px; }
+            .avatar { width: 38px; height: 38px; font-size: 12px; }
             .username { font-size: 14px; max-width: 120px; }
             .flag-img { width: 18px; height: 13px; }
             .device-icon { display: none; }
@@ -639,8 +646,6 @@ function getLiveStatsHTML() {
             <!-- Items will be injected here -->
         </div>
     </div>
-    
-    <div class="debug-info" id="debugInfo">Loading...</div>
 
     <script>
         const offerColors = {
@@ -650,7 +655,6 @@ function getLiveStatsHTML() {
         };
         
         let allClicks = [];
-        let isPaused = false;
         
         function getFlagUrl(country) {
             const code = (country || 'un').toLowerCase();
@@ -667,24 +671,24 @@ function getLiveStatsHTML() {
             const div = document.createElement('div');
             div.className = \`click-item border-\${data.offerId || 'UNKNOWN'}\`;
             
-            const initials = (data.subdomain || 'UN').substring(0, 2).toUpperCase();
+            const offerName = (data.offerId || 'UNKNOWN').toUpperCase();
             const countryCode = (data.country || 'UN').toUpperCase();
             const flagUrl = getFlagUrl(data.country);
             const offerColor = offerColors[data.offerId] || offerColors['UNKNOWN'];
             
+            // Tampilkan Offer Name sebagai Username (sesuai permintaan)
             div.innerHTML = \`
                 <div class="left-section">
                     <div class="avatar" style="background: \${offerColor}">
-                        \${initials}
+                        \${offerName.substring(0, 2)}
                     </div>
                     <div class="info">
-                        <div class="username">\${(data.subdomain || 'Unknown').toUpperCase()}</div>
+                        <div class="username">\${offerName}</div>
                         <div class="details">
                             <span class="country-badge">
-                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.style.display='none';this.nextSibling.style.marginLeft='0'">
+                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.src='https://flagcdn.com/w40/un.png'">
                                 <span>\${countryCode}</span>
                             </span>
-                            <span style="color: \${offerColor}; font-weight: 700; font-size: 11px;">● \${data.offerId || 'LINK'}</span>
                         </div>
                     </div>
                 </div>
@@ -699,36 +703,16 @@ function getLiveStatsHTML() {
         
         async function fetchData() {
             try {
-                console.log('Fetching data...');
                 const res = await fetch('/api/live-clicks');
                 const result = await res.json();
-                console.log('Data received:', result);
                 
                 if (result.success && result.data && result.data.length > 0) {
                     allClicks = result.data;
                     render();
-                    document.getElementById('debugInfo').style.display = 'none';
-                } else {
-                    console.log('No data received, showing empty state');
-                    showEmptyState();
                 }
             } catch (e) {
                 console.error('Fetch error:', e);
-                document.getElementById('debugInfo').textContent = 'Error: ' + e.message;
-                document.getElementById('debugInfo').style.display = 'block';
-                showEmptyState();
             }
-        }
-        
-        function showEmptyState() {
-            const container = document.getElementById('statsTrack');
-            container.innerHTML = \`
-                <div style="text-align: center; color: white; padding: 50px 20px; opacity: 0.8;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
-                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Waiting for clicks...</div>
-                    <div style="font-size: 14px; opacity: 0.8;">Data akan muncul otomatis saat ada kunjungan</div>
-                </div>
-            \`;
         }
         
         function updateTimes() {
@@ -748,25 +732,18 @@ function getLiveStatsHTML() {
             
             container.innerHTML = '';
             
-            if (allClicks.length === 0) {
-                showEmptyState();
-                return;
-            }
+            if (allClicks.length === 0) return;
             
-            // Duplicate for infinite scroll effect
+            // Duplicate for infinite scroll
             const duplicated = [...allClicks, ...allClicks];
             
-            duplicated.forEach((click, index) => {
+            duplicated.forEach((click) => {
                 const item = createClickItem(click);
                 container.appendChild(item);
             });
         }
         
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, initializing...');
-            
-            // Hover effects
             const container = document.getElementById('container');
             const track = document.getElementById('statsTrack');
             
@@ -780,13 +757,8 @@ function getLiveStatsHTML() {
                 });
             }
             
-            // Initial fetch
             fetchData();
-            
-            // Fetch every 5 seconds
             setInterval(fetchData, 5000);
-            
-            // Update times every second
             setInterval(updateTimes, 1000);
         });
     </script>
@@ -1157,4 +1129,4 @@ function copyToClipboard(text){
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-}
+    }
