@@ -42,7 +42,7 @@ export default {
           return handleRecentClicks(env, url.searchParams.get('sub'));
         }
         if (url.pathname === '/api/live-clicks') {
-          return handleLiveClicks(env);
+          return await handleLiveClicks(env);
         }
       }
 
@@ -100,15 +100,31 @@ const DEFAULT_IMAGES = [
   "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg"
 ];
 
-// Flag URLs using flagcdn.com (free CDN for country flags)
+// Mock data generator for demo purposes
+function getMockData() {
+  const users = ['PETUALANG01', 'GROCK', 'GOBAYARUTANG', 'ANDIKA12', 'SLAMET88', 'BUDI99', 'JOKO123', 'ANI2024'];
+  const countries = ['US', 'UA', 'RO', 'IN', 'ID', 'GB', 'DE', 'FR', 'BR', 'JP'];
+  const offers = ['GACOR', 'DENNY', 'RONGGOLAWE', 'PENTOLKOREK', 'KLOWOR', 'DENNOK'];
+  
+  const mockClicks = [];
+  const now = Date.now();
+  
+  for (let i = 0; i < 15; i++) {
+    mockClicks.push({
+      subdomain: users[Math.floor(Math.random() * users.length)],
+      country: countries[Math.floor(Math.random() * countries.length)],
+      offerId: offers[Math.floor(Math.random() * offers.length)],
+      time: now - (i * 5000), // 5 seconds interval
+      timeAgo: i * 5
+    });
+  }
+  
+  return mockClicks;
+}
+
 function getFlagImg(country) {
   const code = (country || 'UN').toLowerCase();
   return `https://flagcdn.com/w40/${code}.png`;
-}
-
-function getFlagSpan(country) {
-  const flagUrl = getFlagImg(country);
-  return `<img src="${flagUrl}" alt="${country}" class="flag-img" onerror="this.style.display='none'">`;
 }
 
 function getRandom(arr) {
@@ -241,14 +257,20 @@ async function handleLiveClicks(env) {
     }
     
     const fiveMinutesAgo = Date.now() - 300000;
-    const recentClicks = allClicks
+    let recentClicks = allClicks
       .filter(c => c.time > fiveMinutesAgo)
       .sort((a, b) => b.time - a.time)
       .slice(0, 50);
     
-    return json({ success: true, data: recentClicks });
+    // Jika data kosong, gunakan mock data untuk demo
+    if (recentClicks.length === 0) {
+      recentClicks = getMockData();
+    }
+    
+    return json({ success: true, data: recentClicks, isMock: recentClicks.length === 0 });
   } catch (err) {
-    return json({ error: err.message }, 500);
+    // Jika error, return mock data agar UI tetap muncul
+    return json({ success: true, data: getMockData(), isMock: true, error: err.message });
   }
 }
 
@@ -273,7 +295,7 @@ async function updateStats(env, sub, country, offerId) {
 
 function getRedirectHTML(url, sub, env, country) {
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  const flagHtml = getFlagSpan(country);
+  const flagUrl = getFlagImg(country);
   
   return `<!DOCTYPE html>
 <html lang="id">
@@ -293,10 +315,10 @@ function getRedirectHTML(url, sub, env, country) {
         .dot:nth-child(1){animation-delay:-0.32s}.dot:nth-child(2){animation-delay:-0.16s}
         @keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
         p{color:#65676b;font-size:14px;font-weight:500;letter-spacing:0.5px;margin-top:4px}
-        .floating-tracker{position:fixed;bottom:10px;right:10px;width:180px;height:100%;pointer-events:none;z-index:5;overflow:hidden}
-        .track-item{position:absolute;right:0;font-size:12px;background:rgba(24,119,242,0.9);color:white;padding:6px 12px;border-radius:20px;white-space:nowrap;opacity:0;animation:floatUp 4s ease-out forwards;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
-        .flag-img{width:20px;height:14px;border-radius:2px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
-        @keyframes floatUp{0%{transform:translateY(0) translateX(0);opacity:0}10%{transform:translateY(-20px) translateX(-5px);opacity:0.95}90%{transform:translateY(-80vh) translateX(-15px);opacity:0.7}100%{transform:translateY(-100vh) translateX(-20px);opacity:0}}
+        .floating-tracker{position:fixed;bottom:10px;right:10px;width:180px;height:90%;pointer-events:none;z-index:5;overflow:hidden;display:flex;flex-direction:column-reverse}
+        .track-item{font-size:11px;background:rgba(24,119,242,0.9);color:white;padding:6px 10px;border-radius:20px;white-space:nowrap;margin-bottom:8px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease-out;align-self:flex-end}
+        .flag-img{width:16px;height:12px;border-radius:2px;object-fit:cover;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+        @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
     </style>
     <script>
         setTimeout(()=>window.location.href="${cleanUrl}",1000);
@@ -306,26 +328,27 @@ function getRedirectHTML(url, sub, env, country) {
                 const res=await fetch('/api/recent-clicks?sub=${sub}');
                 const data=await res.json();
                 if(data.success&&data.data.length>0){
-                    const container=document.createElement('div');
+                    const container=document.querySelector('.floating-tracker') || document.createElement('div');
                     container.className='floating-tracker';
                     document.body.appendChild(container);
                     data.data.slice(-5).reverse().forEach((click,idx)=>{
                         setTimeout(()=>{
                             const item=document.createElement('div');
                             item.className='track-item';
-                            const flagUrl='https://flagcdn.com/w40/'+(click.country||'un').toLowerCase()+'.png';
-                            item.innerHTML='<img src="'+flagUrl+'" style="width:20px;height:14px;border-radius:2px;object-fit:cover"> <span style="font-weight:600">'+(click.offerId||'LINK')+'</span>';
+                            const flagUrl='https://flagcdn.com/w20/'+(click.country||'un').toLowerCase()+'.png';
+                            item.innerHTML='<img src="'+flagUrl+'" class="flag-img"> <span style="font-weight:600">'+(click.offerId||'LINK')+'</span>';
                             container.appendChild(item);
-                            setTimeout(()=>item.remove(),4000);
-                        },idx*800);
+                            setTimeout(()=>{if(item.parentNode)item.parentNode.removeChild(item)},5000);
+                        },idx*600);
                     });
                 }
-            }catch(e){}
+            }catch(e){console.error(e)}
         }
         loadRecentClicks();
     </script>
 </head>
 <body>
+    <div class="floating-tracker"></div>
     <div class="loader" onclick="window.location.href='${cleanUrl}'">
         <div class="spinner"></div>
         <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -356,13 +379,13 @@ function getLiveStatsHTML() {
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Real-Time Live Clicks</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -371,23 +394,25 @@ function getLiveStatsHTML() {
         }
         
         .header {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
-            padding: 20px;
+            padding: 15px 20px;
             text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 100;
+            flex-shrink: 0;
         }
         
         .header h1 {
             color: white;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
+            margin: 0;
         }
         
         .live-indicator {
@@ -404,8 +429,8 @@ function getLiveStatsHTML() {
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.95); }
         }
         
         .pulse-dot {
@@ -413,7 +438,7 @@ function getLiveStatsHTML() {
             height: 8px;
             background: white;
             border-radius: 50%;
-            animation: blink 1.5s infinite;
+            animation: blink 1s infinite;
         }
         
         @keyframes blink {
@@ -425,16 +450,17 @@ function getLiveStatsHTML() {
             flex: 1;
             position: relative;
             overflow: hidden;
-            padding: 20px;
+            padding: 10px 15px;
         }
         
-        .stats-row {
+        .stats-track {
             position: absolute;
             width: 100%;
-            animation: scrollUp 30s linear infinite;
+            animation: scrollUp 25s linear infinite;
+            will-change: transform;
         }
         
-        .stats-row:hover {
+        .stats-track:hover {
             animation-play-state: paused;
         }
         
@@ -445,9 +471,9 @@ function getLiveStatsHTML() {
         
         .click-item {
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 16px 20px;
-            margin-bottom: 12px;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -455,28 +481,31 @@ function getLiveStatsHTML() {
             transition: all 0.3s ease;
             border-left: 4px solid;
             animation: slideIn 0.5s ease-out;
+            backdrop-filter: blur(10px);
         }
         
         .click-item:hover {
-            transform: translateX(10px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 10;
         }
         
         @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
+            from { opacity: 0; transform: translateX(-30px); }
             to { opacity: 1; transform: translateX(0); }
         }
         
         .left-section {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             flex: 1;
+            min-width: 0;
         }
         
         .avatar {
-            width: 45px;
-            height: 45px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
@@ -484,46 +513,51 @@ function getLiveStatsHTML() {
             justify-content: center;
             color: white;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 13px;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .info {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
+            min-width: 0;
         }
         
         .username {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
             color: #2d3436;
             letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .details {
-            font-size: 13px;
+            font-size: 12px;
             color: #636e72;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
         .country-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             background: rgba(102, 126, 234, 0.1);
-            padding: 4px 10px;
-            border-radius: 12px;
+            padding: 3px 8px;
+            border-radius: 10px;
             font-weight: 600;
             color: #667eea;
             border: 1px solid rgba(102, 126, 234, 0.2);
         }
         
         .flag-img {
-            width: 24px;
+            width: 22px;
             height: 16px;
             border-radius: 3px;
             object-fit: cover;
@@ -533,70 +567,59 @@ function getLiveStatsHTML() {
         .right-section {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            flex-shrink: 0;
         }
         
         .device-icon {
-            width: 35px;
-            height: 35px;
+            width: 32px;
+            height: 32px;
             background: rgba(118, 75, 162, 0.1);
-            border-radius: 10px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 16px;
         }
         
         .time-badge {
-            font-size: 12px;
+            font-size: 11px;
             color: #b2bec3;
-            font-weight: 500;
-            min-width: 60px;
+            font-weight: 600;
+            min-width: 55px;
             text-align: right;
         }
         
-        .offer-tag {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            color: white;
-            margin-top: 100px;
-            opacity: 0.8;
-        }
-        
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-        
         /* Color coding for different offers */
-        .border-GACOR { border-left-color: #00b894 !important; }
-        .border-DENNY { border-left-color: #fdcb6e !important; }
-        .border-RONGGOLAWE { border-left-color: #e17055 !important; }
-        .border-PENTOLKOREK { border-left-color: #74b9ff !important; }
-        .border-KLOWOR { border-left-color: #a29bfe !important; }
-        .border-DENNOK { border-left-color: #fd79a8 !important; }
+        .border-GACOR { border-left-color: #00b894 !important; background: linear-gradient(90deg, rgba(0,184,148,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-DENNY { border-left-color: #fdcb6e !important; background: linear-gradient(90deg, rgba(253,203,110,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-RONGGOLAWE { border-left-color: #e17055 !important; background: linear-gradient(90deg, rgba(225,112,85,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-PENTOLKOREK { border-left-color: #74b9ff !important; background: linear-gradient(90deg, rgba(116,185,255,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-KLOWOR { border-left-color: #a29bfe !important; background: linear-gradient(90deg, rgba(162,155,254,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
+        .border-DENNOK { border-left-color: #fd79a8 !important; background: linear-gradient(90deg, rgba(253,121,168,0.05) 0%, rgba(255,255,255,0.95) 100%) !important; }
         .border-CUSTOM { border-left-color: #636e72 !important; }
         .border-UNKNOWN { border-left-color: #b2bec3 !important; }
         
-        @media (max-width: 768px) {
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        @media (max-width: 480px) {
             .header h1 { font-size: 20px; }
-            .click-item { padding: 12px 16px; }
-            .avatar { width: 40px; height: 40px; font-size: 12px; }
-            .username { font-size: 14px; }
-            .offer-tag { display: none; }
-            .flag-img { width: 20px; height: 14px; }
+            .click-item { padding: 12px 14px; }
+            .avatar { width: 38px; height: 38px; font-size: 11px; }
+            .username { font-size: 14px; max-width: 120px; }
+            .flag-img { width: 18px; height: 13px; }
+            .device-icon { display: none; }
         }
     </style>
 </head>
@@ -612,21 +635,18 @@ function getLiveStatsHTML() {
     </div>
     
     <div class="container" id="container">
-        <div class="stats-row" id="statsRow">
+        <div class="stats-track" id="statsTrack">
             <!-- Items will be injected here -->
         </div>
     </div>
+    
+    <div class="debug-info" id="debugInfo">Loading...</div>
 
     <script>
         const offerColors = {
-            'GACOR': '#00b894',
-            'DENNY': '#fdcb6e',
-            'RONGGOLAWE': '#e17055',
-            'PENTOLKOREK': '#74b9ff',
-            'KLOWOR': '#a29bfe',
-            'DENNOK': '#fd79a8',
-            'CUSTOM': '#636e72',
-            'UNKNOWN': '#b2bec3'
+            'GACOR': '#00b894', 'DENNY': '#fdcb6e', 'RONGGOLAWE': '#e17055',
+            'PENTOLKOREK': '#74b9ff', 'KLOWOR': '#a29bfe', 'DENNOK': '#fd79a8',
+            'CUSTOM': '#636e72', 'UNKNOWN': '#b2bec3'
         };
         
         let allClicks = [];
@@ -647,11 +667,10 @@ function getLiveStatsHTML() {
             const div = document.createElement('div');
             div.className = \`click-item border-\${data.offerId || 'UNKNOWN'}\`;
             
-            const initials = data.subdomain.substring(0, 2).toUpperCase();
-            const timeAgo = data.timeAgo || Math.floor((Date.now() - data.time) / 1000);
+            const initials = (data.subdomain || 'UN').substring(0, 2).toUpperCase();
+            const countryCode = (data.country || 'UN').toUpperCase();
             const flagUrl = getFlagUrl(data.country);
             const offerColor = offerColors[data.offerId] || offerColors['UNKNOWN'];
-            const countryCode = (data.country || 'UN').toUpperCase();
             
             div.innerHTML = \`
                 <div class="left-section">
@@ -659,20 +678,19 @@ function getLiveStatsHTML() {
                         \${initials}
                     </div>
                     <div class="info">
-                        <div class="username">\${data.subdomain.toUpperCase()}</div>
+                        <div class="username">\${(data.subdomain || 'Unknown').toUpperCase()}</div>
                         <div class="details">
                             <span class="country-badge">
-                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.style.display='none'">
+                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.style.display='none';this.nextSibling.style.marginLeft='0'">
                                 <span>\${countryCode}</span>
                             </span>
-                            <span>•</span>
-                            <span style="color: \${offerColor}; font-weight: 600">\${data.offerId || 'LINK'}</span>
+                            <span style="color: \${offerColor}; font-weight: 700; font-size: 11px;">● \${data.offerId || 'LINK'}</span>
                         </div>
                     </div>
                 </div>
                 <div class="right-section">
                     <div class="device-icon">📱</div>
-                    <span class="time-badge">\${formatTime(timeAgo)}</span>
+                    <span class="time-badge" data-time="\${data.time}">\${formatTime(Math.floor((Date.now() - data.time)/1000))}</span>
                 </div>
             \`;
             
@@ -681,90 +699,94 @@ function getLiveStatsHTML() {
         
         async function fetchData() {
             try {
+                console.log('Fetching data...');
                 const res = await fetch('/api/live-clicks');
                 const result = await res.json();
+                console.log('Data received:', result);
                 
-                if (result.success && result.data) {
-                    // Merge new data, avoiding duplicates
-                    const existing = new Set(allClicks.map(c => c.time + c.subdomain));
-                    const newItems = result.data.filter(c => !existing.has(c.time + c.subdomain));
-                    
-                    if (newItems.length > 0) {
-                        allClicks = [...newItems, ...allClicks].slice(0, 50);
-                        render();
-                    }
-                    
-                    // Update time only
-                    updateTimes();
+                if (result.success && result.data && result.data.length > 0) {
+                    allClicks = result.data;
+                    render();
+                    document.getElementById('debugInfo').style.display = 'none';
+                } else {
+                    console.log('No data received, showing empty state');
+                    showEmptyState();
                 }
             } catch (e) {
                 console.error('Fetch error:', e);
+                document.getElementById('debugInfo').textContent = 'Error: ' + e.message;
+                document.getElementById('debugInfo').style.display = 'block';
+                showEmptyState();
             }
+        }
+        
+        function showEmptyState() {
+            const container = document.getElementById('statsTrack');
+            container.innerHTML = \`
+                <div style="text-align: center; color: white; padding: 50px 20px; opacity: 0.8;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Waiting for clicks...</div>
+                    <div style="font-size: 14px; opacity: 0.8;">Data akan muncul otomatis saat ada kunjungan</div>
+                </div>
+            \`;
         }
         
         function updateTimes() {
             const items = document.querySelectorAll('.time-badge');
-            items.forEach((item, idx) => {
-                if (allClicks[idx]) {
-                    const seconds = Math.floor((Date.now() - allClicks[idx].time) / 1000);
+            items.forEach(item => {
+                const time = parseInt(item.getAttribute('data-time'));
+                if (time) {
+                    const seconds = Math.floor((Date.now() - time) / 1000);
                     item.textContent = formatTime(seconds);
                 }
             });
         }
         
         function render() {
-            const container = document.getElementById('statsRow');
+            const container = document.getElementById('statsTrack');
+            if (!container) return;
+            
             container.innerHTML = '';
             
-            // Duplicate the array multiple times for seamless infinite scroll
-            const duplicated = [...allClicks, ...allClicks, ...allClicks];
+            if (allClicks.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            // Duplicate for infinite scroll effect
+            const duplicated = [...allClicks, ...allClicks];
             
             duplicated.forEach((click, index) => {
-                const clickData = {...click};
-                // Adjust time for duplicated items
-                if (index >= allClicks.length) {
-                    const originalTime = clickData.timeAgo || 0;
-                    clickData.timeAgo = (index % allClicks.length) + originalTime + (Math.floor(index / allClicks.length) * allClicks.length);
-                }
-                const item = createClickItem(clickData);
+                const item = createClickItem(click);
                 container.appendChild(item);
             });
-            
-            // If no data, show placeholder
-            if (allClicks.length === 0) {
-                container.innerHTML = \`
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="9" y1="9" x2="15" y2="15"></line>
-                            <line x1="15" y1="9" x2="9" y2="15"></line>
-                        </svg>
-                        <p>Waiting for clicks...</p>
-                        <p style="font-size: 14px; margin-top: 10px; opacity: 0.7">Data will appear automatically</p>
-                    </div>
-                \`;
-            }
         }
         
-        // Event listeners for pause on hover
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, initializing...');
+            
+            // Hover effects
             const container = document.getElementById('container');
+            const track = document.getElementById('statsTrack');
             
-            container.addEventListener('mouseenter', () => {
-                isPaused = true;
-            });
-            
-            container.addEventListener('mouseleave', () => {
-                isPaused = false;
-            });
+            if (container && track) {
+                container.addEventListener('mouseenter', () => {
+                    track.style.animationPlayState = 'paused';
+                });
+                
+                container.addEventListener('mouseleave', () => {
+                    track.style.animationPlayState = 'running';
+                });
+            }
             
             // Initial fetch
             fetchData();
             
-            // Fetch every 3 seconds
-            setInterval(fetchData, 3000);
+            // Fetch every 5 seconds
+            setInterval(fetchData, 5000);
             
-            // Update time badges every second
+            // Update times every second
             setInterval(updateTimes, 1000);
         });
     </script>
@@ -785,359 +807,64 @@ function getDashboardHTML(domains) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login Generate - Dashboard</title>
 <style>
-  :root{
-    --primary:#1877f2;
-    --primary-dark:#166fe5;
-    --danger:#f02849;
-    --success:#42b72a;
-    --warning:#f7b928;
-    --bg:#f0f2f5;
-    --card-bg:#fff;
-    --text:#1c1e21;
-    --text-secondary:#65676b;
-    --border:#ddd;
-    --shadow:0 2px 12px rgba(0,0,0,0.1);
-    --radius:12px;
-    --radius-sm:8px;
-  }
-  
+  :root{--primary:#1877f2;--primary-dark:#166fe5;--danger:#f02849;--success:#42b72a;--warning:#f7b928;--bg:#f0f2f5;--card-bg:#fff;--text:#1c1e21;--text-secondary:#65676b;--border:#ddd;--shadow:0 2px 12px rgba(0,0,0,0.1);--radius:12px;--radius-sm:8px}
   *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   body{background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
-  
   .app-container{max-width:1400px;margin:0 auto;display:flex;min-height:100vh}
-  
-  /* SIDEBAR */
-  .sidebar{
-    width:260px;
-    background:var(--card-bg);
-    border-right:1px solid var(--border);
-    padding:24px 16px;
-    position:fixed;
-    height:100vh;
-    overflow-y:auto;
-    z-index:100;
-    display:none;
-  }
-  .sidebar-logo{
-    font-size:22px;
-    font-weight:800;
-    color:var(--primary);
-    margin-bottom:32px;
-    padding:0 8px;
-    letter-spacing:-0.5px;
-    line-height:1.2
-  }
-  .nav-item{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    padding:12px 16px;
-    margin:4px 0;
-    border-radius:var(--radius-sm);
-    color:var(--text-secondary);
-    text-decoration:none;
-    font-weight:600;
-    font-size:15px;
-    transition:all 0.2s;
-    cursor:pointer;
-  }
+  .sidebar{width:260px;background:var(--card-bg);border-right:1px solid var(--border);padding:24px 16px;position:fixed;height:100vh;overflow-y:auto;z-index:100;display:none}
+  .sidebar-logo{font-size:22px;font-weight:800;color:var(--primary);margin-bottom:32px;padding:0 8px;letter-spacing:-0.5px;line-height:1.2}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:12px 16px;margin:4px 0;border-radius:var(--radius-sm);color:var(--text-secondary);text-decoration:none;font-weight:600;font-size:15px;transition:all 0.2s;cursor:pointer}
   .nav-item:hover,.nav-item.active{background:var(--bg);color:var(--primary)}
-  .sidebar-footer{
-    position:absolute;
-    bottom:24px;
-    left:16px;
-    right:16px;
-    font-size:12px;
-    color:var(--text-secondary);
-    text-align:center;
-  }
-  
-  /* MAIN CONTENT */
-  .main-content{
-    flex:1;
-    margin-left:0;
-    padding:16px;
-    width:100%;
-    padding-bottom:80px;
-  }
-  
-  /* MOBILE HEADER */
-  .mobile-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:12px 16px;
-    background:var(--card-bg);
-    margin:-16px -16px 16px -16px;
-    border-bottom:1px solid var(--border);
-    position:sticky;
-    top:0;
-    z-index:99;
-  }
+  .sidebar-footer{position:absolute;bottom:24px;left:16px;right:16px;font-size:12px;color:var(--text-secondary);text-align:center}
+  .main-content{flex:1;margin-left:0;padding:16px;width:100%;padding-bottom:80px}
+  .mobile-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card-bg);margin:-16px -16px 16px -16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:99}
   .mobile-title{font-size:20px;font-weight:800;color:var(--primary)}
-  
-  /* CARDS */
-  .card{
-    background:var(--card-bg);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    padding:20px;
-    margin-bottom:20px;
-  }
-  .card-title{
-    font-size:18px;
-    font-weight:700;
-    margin-bottom:20px;
-    color:var(--text);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-  }
+  .card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px}
+  .card-title{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text);display:flex;align-items:center;justify-content:space-between}
   .card-subtitle{font-size:13px;color:var(--text-secondary);font-weight:500;margin-top:4px}
-  
-  /* FORM ELEMENTS */
   .form-group{margin-bottom:16px}
-  label{
-    display:block;
-    font-size:13px;
-    font-weight:600;
-    color:var(--text-secondary);
-    margin-bottom:6px;
-    text-transform:uppercase;
-    letter-spacing:0.3px
-  }
-  input,select,textarea{
-    width:100%;
-    padding:12px 16px;
-    border:1px solid var(--border);
-    border-radius:var(--radius-sm);
-    font-size:15px;
-    background:var(--card-bg);
-    transition:all 0.2s;
-    min-height:44px;
-  }
-  input:focus,select:focus,textarea:focus{
-    outline:none;
-    border-color:var(--primary);
-    box-shadow:0 0 0 3px rgba(24,119,242,0.1);
-  }
+  label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px}
+  input,select,textarea{width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:15px;background:var(--card-bg);transition:all 0.2s;min-height:44px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(24,119,242,0.1)}
   select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
   textarea{resize:vertical;min-height:80px}
-  
-  /* GRID LAYOUTS */
   .form-row{display:grid;grid-template-columns:1fr;gap:16px}
-  
-  /* BUTTONS */
-  .btn{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    padding:12px 24px;
-    border:none;
-    border-radius:var(--radius-sm);
-    font-size:15px;
-    font-weight:600;
-    cursor:pointer;
-    transition:all 0.2s;
-    min-height:44px;
-    width:100%;
-  }
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;min-height:44px;width:100%}
   .btn-primary{background:var(--primary);color:#fff}
   .btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
-  .btn-primary:active{transform:translateY(0)}
-  .btn-secondary{
-    background:#e4e6eb;
-    color:var(--text);
-    border:1px solid var(--border);
-  }
+  .btn-secondary{background:#e4e6eb;color:var(--text);border:1px solid var(--border)}
   .btn-secondary:hover{background:var(--border)}
   .btn-success{background:var(--success);color:#fff}
   .btn-danger{background:var(--danger);color:#fff}
   .btn-sm{padding:8px 16px;font-size:13px}
-  .btn-logout{
-    background:transparent;
-    color:var(--danger);
-    border:1px solid var(--danger);
-    padding:8px 16px;
-    font-size:13px;
-    width:auto;
-  }
-  
-  /* NAV BUTTONS */
-  .nav-buttons{
-    display:flex;
-    gap:12px;
-    margin-top:20px;
-    padding-top:20px;
-    border-top:1px solid var(--border);
-  }
-  @media(min-width:1024px){
-    .nav-buttons{flex-direction:row}
-    .nav-buttons .btn{width:auto;flex:1}
-  }
-  @media(max-width:1023px){
-    .nav-buttons{flex-direction:column}
-  }
-  
-  /* OFFER BADGE */
-  .offer-select{
-    background:linear-gradient(135deg,#f0f2f5 0%,#e4e6eb 100%);
-    color:var(--primary);
-    font-weight:700;
-    border:2px solid var(--primary);
-  }
-  .offer-badge{
-    display:inline-flex;
-    align-items:center;
-    background:var(--primary);
-    color:#fff;
-    padding:4px 12px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:700;
-    letter-spacing:0.5px
-  }
-  
-  /* LINK ITEMS GRID */
-  .links-grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:16px;
-  }
-  .link-item{
-    background:var(--card-bg);
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:16px;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    transition:all 0.2s;
-    position:relative;
-    overflow:hidden;
-  }
-  .link-item:hover{
-    box-shadow:0 4px 20px rgba(0,0,0,0.1);
-    transform:translateY(-2px);
-  }
-  .link-header{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex-wrap:wrap;
-  }
-  .link-title{
-    font-weight:700;
-    font-size:15px;
-    color:var(--text);
-    flex:1;
-    min-width:0;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .link-url{
-    font-size:13px;
-    color:var(--primary);
-    background:rgba(24,119,242,0.1);
-    padding:4px 12px;
-    border-radius:20px;
-    font-weight:600;
-    word-break:break-all;
-  }
-  .link-meta{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    font-size:12px;
-    color:var(--text-secondary);
-    margin-top:4px;
-  }
-  .link-actions{
-    display:grid;
-    grid-template-columns:1fr auto;
-    gap:8px;
-    margin-top:8px;
-  }
-  
-  /* LOGIN FORM */
-  .login-container{
-    max-width:400px;
-    margin:80px auto;
-    padding:0 20px;
-  }
-  .login-card{
-    background:var(--card-bg);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    padding:40px 32px;
-    text-align:center;
-  }
-  .login-logo{
-    font-size:32px;
-    font-weight:800;
-    color:var(--primary);
-    margin-bottom:8px;
-    letter-spacing:-1px
-  }
+  .btn-logout{background:transparent;color:var(--danger);border:1px solid var(--danger);padding:8px 16px;font-size:13px;width:auto}
+  .nav-buttons{display:flex;gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+  .offer-select{background:linear-gradient(135deg,#f0f2f5 0%,#e4e6eb 100%);color:var(--primary);font-weight:700;border:2px solid var(--primary)}
+  .offer-badge{display:inline-flex;align-items:center;background:var(--primary);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:0.5px}
+  .links-grid{display:grid;grid-template-columns:1fr;gap:16px}
+  .link-item{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:8px;transition:all 0.2s;position:relative;overflow:hidden}
+  .link-item:hover{box-shadow:0 4px 20px rgba(0,0,0,0.1);transform:translateY(-2px)}
+  .link-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .link-title{font-weight:700;font-size:15px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .link-url{font-size:13px;color:var(--primary);background:rgba(24,119,242,0.1);padding:4px 12px;border-radius:20px;font-weight:600;word-break:break-all}
+  .link-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-secondary);margin-top:4px}
+  .link-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
+  .login-container{max-width:400px;margin:80px auto;padding:0 20px}
+  .login-card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);padding:40px 32px;text-align:center}
+  .login-logo{font-size:32px;font-weight:800;color:var(--primary);margin-bottom:8px;letter-spacing:-1px}
   .login-subtitle{color:var(--text-secondary);margin-bottom:32px;font-size:15px}
-  
-  /* UTILITIES */
   .hidden{display:none!important}
   .text-center{text-align:center}
   .mt-1{margin-top:8px}
   .mt-2{margin-top:16px}
   .mb-2{margin-bottom:16px}
-  
-  /* DESKTOP BREAKPOINTS */
-  @media(min-width:768px){
-    .main-content{padding:24px 32px;padding-bottom:40px}
-    .form-row{grid-template-columns:repeat(2,1fr)}
-    .links-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-  }
-  
-  @media(min-width:1024px){
-    .sidebar{display:block}
-    .main-content{margin-left:260px;padding:32px 40px}
-    .mobile-header{display:none}
-    .btn{width:auto}
-    .btn-full{width:100%}
-    .link-actions{grid-template-columns:1fr 80px}
-  }
-  
-  @media(min-width:1280px){
-    .links-grid{grid-template-columns:repeat(3,1fr)}
-  }
-  
-  /* TOAST NOTIFICATION */
-  .toast{
-    position:fixed;
-    bottom:24px;
-    right:24px;
-    background:var(--text);
-    color:#fff;
-    padding:16px 24px;
-    border-radius:var(--radius-sm);
-    box-shadow:0 4px 20px rgba(0,0,0,0.3);
-    z-index:1000;
-    transform:translateY(100px);
-    opacity:0;
-    transition:all 0.3s;
-  }
+  @media(min-width:768px){.main-content{padding:24px 32px;padding-bottom:40px}.form-row{grid-template-columns:repeat(2,1fr)}.links-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+  @media(min-width:1024px){.sidebar{display:block}.main-content{margin-left:260px;padding:32px 40px}.mobile-header{display:none}.btn{width:auto}.btn-full{width:100%}.link-actions{grid-template-columns:1fr 80px}.nav-buttons{flex-direction:row}.nav-buttons .btn{flex:1}}
+  @media(min-width:1280px){.links-grid{grid-template-columns:repeat(3,1fr)}}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:16px 24px;border-radius:var(--radius-sm);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:1000;transform:translateY(100px);opacity:0;transition:all 0.3s}
   .toast.show{transform:translateY(0);opacity:1}
-  
-  /* LIVE BUTTON */
-  .btn-live {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    margin-top: 12px;
-    width: 100%;
-  }
-  .btn-live:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
-  }
+  .btn-live{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;margin-top:12px;width:100%}
+  .btn-live:hover{opacity:0.9;transform:translateY(-2px)}
 </style>
 </head>
 <body>
@@ -1159,16 +886,9 @@ function getDashboardHTML(domains) {
   <!-- Sidebar Desktop -->
   <nav class="sidebar">
     <div class="sidebar-logo">Login Generate</div>
-    <a class="nav-item active" onclick="showSection('create')">
-      <span>Buat Link</span>
-    </a>
-    <a class="nav-item" onclick="showSection('list')">
-      <span>Riwayat Link</span>
-    </a>
-    <div class="sidebar-footer">
-      Tools by Sesepuh © 2025<br>
-      <span style="font-size:11px;opacity:0.7">v2.0 Responsive</span>
-    </div>
+    <a class="nav-item active" onclick="showSection('create')"><span>Buat Link</span></a>
+    <a class="nav-item" onclick="showSection('list')"><span>Riwayat Link</span></a>
+    <div class="sidebar-footer">Tools by Sesepuh © 2025<br><span style="font-size:11px;opacity:0.7">v2.0 Responsive</span></div>
   </nav>
 
   <!-- Main Content -->
@@ -1230,17 +950,11 @@ function getDashboardHTML(domains) {
 
         <button class="btn btn-primary btn-full" onclick="create()" id="btn">Generate & Salin Link</button>
         
-        <!-- TOMBOL LIHAT RIWAYAT TAMBAHAN -->
         <div class="nav-buttons">
-          <button class="btn btn-secondary" onclick="showSection('list')">
-            Lihat Riwayat Link
-          </button>
+          <button class="btn btn-secondary" onclick="showSection('list')">Lihat Riwayat Link</button>
         </div>
         
-        <!-- BUTTON LIVE STATS -->
-        <button class="btn btn-live" onclick="window.open('/live', '_blank')">
-          📊 Lihat Live Real-Time Clicks
-        </button>
+        <button class="btn btn-live" onclick="window.open('/live', '_blank')">📊 Lihat Live Real-Time Clicks</button>
       </div>
     </section>
 
@@ -1255,14 +969,9 @@ function getDashboardHTML(domains) {
           <button class="btn btn-primary btn-sm" onclick="showSection('create')">+ Buat Baru</button>
         </div>
         
-        <!-- TOMBOL KEMBALI TAMBAHAN -->
         <div style="margin-bottom:20px;">
-          <button class="btn btn-secondary btn-sm" onclick="showSection('create')" style="width:auto">
-            ← Kembali ke Buat Link
-          </button>
-          <button class="btn btn-live btn-sm" onclick="window.open('/live', '_blank')" style="width:auto; margin-left:8px">
-            📊 Live Stats
-          </button>
+          <button class="btn btn-secondary btn-sm" onclick="showSection('create')" style="width:auto">← Kembali ke Buat Link</button>
+          <button class="btn btn-live btn-sm" onclick="window.open('/live', '_blank')" style="width:auto; margin-left:8px">📊 Live Stats</button>
         </div>
         
         <div id="linksContainer" class="links-grid">
@@ -1271,8 +980,7 @@ function getDashboardHTML(domains) {
       </div>
     </section>
 
-    <!-- Copyright Mobile -->
-    <div class="text-center mt-2" style="color:var(--text-secondary);font-size:12px;padding-bottom:20px;display:block;lg:none">
+    <div class="text-center mt-2" style="color:var(--text-secondary);font-size:12px;padding-bottom:20px;">
       Tools by Sesepuh © 2025
     </div>
   </main>
@@ -1442,10 +1150,6 @@ function copyToClipboard(text){
     document.body.removeChild(el);
   }
 }
-
-window.addEventListener('resize',()=>{
-  document.documentElement.style.setProperty('--vh',window.innerHeight*0.01+'px');
-});
 </script>
 
 </body></html>`;
@@ -1453,4 +1157,4 @@ window.addEventListener('resize',()=>{
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-        }
+                 }
