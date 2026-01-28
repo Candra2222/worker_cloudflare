@@ -1157,4 +1157,4 @@ function copyToClipboard(text){
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-                 }
+}
