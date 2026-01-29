@@ -32,24 +32,12 @@ export default {
         if (url.pathname === '/api/create' && request.method === 'POST') {
           return handleCreate(request, env);
         }
-        if (url.pathname === '/api/list') {
+        if (url.pathname === '/api/list' && request.method === 'GET') {
           return handleList(env);
         }
-        if (url.pathname.startsWith('/api/delete/')) {
+        if (url.pathname.startsWith('/api/delete/') && request.method === 'DELETE') {
           return handleDelete(env, url.pathname.split('/').pop());
         }
-        if (url.pathname === '/api/recent-clicks') {
-          return handleRecentClicks(env, url.searchParams.get('sub'));
-        }
-        if (url.pathname === '/api/live-clicks') {
-          return await handleLiveClicks(env);
-        }
-      }
-
-      if (url.pathname === '/live') {
-        return new Response(getLiveStatsHTML(), {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
-        });
       }
 
       if (url.pathname === '/' || url.pathname === '') {
@@ -66,12 +54,12 @@ export default {
 };
 
 const OFFER_LINKS = {
-  'GACOR': 'https://fdeddg.hubss.one/p/yCTUy ',
-  'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK ',
-  'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6 ',
-  'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld ',
-  'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6 ',
-  'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0 ',
+  'GACOR': 'https://fdeddg.hubss.one/p/yCTUy',
+  'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK',
+  'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6',
+  'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld',
+  'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6',
+  'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0',
   'CUSTOM': null
 };
 
@@ -82,25 +70,6 @@ const GIRL_NAMES = [
   'Madison', 'Luna', 'Grace', 'Chloe', 'Penelope', 'Layla', 'Riley', 'Zoey', 'Nora', 'Lily',
   'Eleanor', 'Hannah', 'Lillian', 'Addison', 'Aubrey', 'Ellie', 'Stella', 'Natalie', 'Zoe', 'Leah',
   'Hazel', 'Violet', 'Aurora', 'Savannah', 'Audrey', 'Brooklyn', 'Bella', 'Claire', 'Skylar', 'Lucy'
-];
-
-// All countries ISO 3166-1 alpha-2
-const ALL_COUNTRIES = [
-  'US', 'CA', 'GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'CH', 'AT', 'SE', 'NO', 'DK', 'FI', 'PL', 
-  'CZ', 'HU', 'RO', 'BG', 'HR', 'SI', 'SK', 'LT', 'LV', 'EE', 'IE', 'PT', 'GR', 'CY', 'MT', 'LU', 
-  'IS', 'AL', 'BA', 'MK', 'MD', 'UA', 'BY', 'RU', 'TR', 'GE', 'AZ', 'AM', 'KZ', 'UZ', 'TM', 'KG', 
-  'TJ', 'CN', 'JP', 'KR', 'KP', 'TW', 'HK', 'MO', 'SG', 'MY', 'TH', 'ID', 'PH', 'VN', 'LA', 'KH', 
-  'MM', 'BN', 'IN', 'PK', 'BD', 'LK', 'NP', 'BT', 'MV', 'AF', 'IR', 'IQ', 'SY', 'LB', 'JO', 'IL', 
-  'PS', 'SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW', 'EG', 'LY', 'TN', 'DZ', 'MA', 'MR', 'ML', 'NE', 
-  'TD', 'SD', 'ER', 'DJ', 'ET', 'SO', 'KE', 'UG', 'TZ', 'RW', 'BI', 'MW', 'MZ', 'ZM', 'ZW', 'BW', 
-  'NA', 'ZA', 'LS', 'SZ', 'MG', 'KM', 'MU', 'SC', 'CV', 'GW', 'GQ', 'ST', 'GA', 'CG', 'CD', 'AO', 
-  'CM', 'CF', 'NG', 'BJ', 'TG', 'GH', 'CI', 'LR', 'SL', 'GN', 'GM', 'SN', 'BF', 'NZ', 'AU', 'PG', 
-  'FJ', 'SB', 'VU', 'NC', 'PF', 'WS', 'TO', 'KI', 'NR', 'TV', 'FM', 'MH', 'PW', 'AS', 'GU', 'MP', 
-  'PR', 'VI', 'GL', 'AX', 'FO', 'SJ', 'GF', 'GP', 'MQ', 'YT', 'RE', 'PM', 'BL', 'MF', 'WF', 'CK', 
-  'NU', 'TK', 'PN', 'SH', 'GS', 'IO', 'AQ', 'BV', 'HM', 'CC', 'CX', 'NF', 'UM', 'AI', 'AG', 'AR', 
-  'AW', 'BS', 'BB', 'BZ', 'BM', 'BO', 'BQ', 'BR', 'VG', 'KY', 'CL', 'CO', 'CR', 'CU', 'CW', 'DM', 
-  'DO', 'EC', 'SV', 'FK', 'GF', 'GD', 'GT', 'GY', 'HT', 'HN', 'JM', 'MX', 'MS', 'NI', 'PA', 'PY', 
-  'PE', 'PR', 'SX', 'GS', 'SR', 'TT', 'TC', 'UY', 'VE', 'UN'
 ];
 
 const DEFAULT_TITLES = [
@@ -120,41 +89,13 @@ const DEFAULT_DESCS = [
 ];
 
 const DEFAULT_IMAGES = [
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEia5EZN81KImOLwCf4Maw9Rx93SMzi-Y1sl4FlymVs-p7A7fzpnnwzV3PPTRw95HtjanyPfOC7wGpR7PWlJbeLoK1fmtI5Siziuo1SMQJDqnwd7BZhjbHDuErzJIXkaXqw6Mp8WRohL9fyh93oJhDEgPbpV0ErLx6V5mA15iSO1gWlduuNVAOwxo7Ev455P/s1600/1000273276.jpg ",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg8Dww4NmXkBhQklIJkpCwUwSGlpEwRlO_v9xk2Sif9c0IqxCkx9_2Bh2Trg-Ghidlqty_ZxX_jvdVsyQGNp7fGaek0EzoQ-i1_DMglfA9ATJzhn2yfmWbOD9HItFSPAgq24eM6KMRLxwNNxeLaLuo4N8VDwUurVtBBYhmAw5Lhi7K_MhE2fKzWxiMqNuXv/s1600/1000281899.jpg ",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgLmLDHXtTQrS45ZtnxZdnkIcWi1JJR1sJeC2OnzAO2V9zH1h7gaiAvNpkiaQIk1kwulp84CqoKfEDxnV3cnGHSFBgSrLoL6__uvdsiH392xvwxdFQIiws2OL1E2dCR_4Csa4iVdnNInHkrBmo-i-U8CGaI9mYrMDndq1fWogmCCUQGS4p-yFlA253eOfmY/s16000/1000278957.jpg ",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhY2U1nNExdEb1EmswodAdiZqFJvBi-j5qmXYihXFcnIUndSXE3u4zxS6yuKvKFCL6Y2dh0hdqk3Oc0oZZ1tg5pYWMzcRoaIlT3NVw0pZ7fldLwJCdE5mfn8UNtwDTnksPulL9NK3yG5cp7HYdKjmB8rdyv7kAt-B5Jrlu3P5o0xUbwIC8TDOXWpyKjimZN/s1600/1000277246.jpg ",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgVt6Bj8uzv9tZc5AChsYKNjcPzFOtR8yM5WUrG3hseYZl_RrEyU_6MOsu2CtaUuKrQ7WkPvfGIGvzGxQurpR7P5rKo1aAEwsn6zXl1t-jZf4Uz0jeTdsVr_c3L5pvMNukqOTfMLaw9yVw62_fzDUs9bSIQmvQ39OmLEp0k6H-nJS_HLp48-5CA1QYRdU6Y/s1600/1000271008.jpg ",
-  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg "
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEia5EZN81KImOLwCf4Maw9Rx93SMzi-Y1sl4FlymVs-p7A7fzpnnwzV3PPTRw95HtjanyPfOC7wGpR7PWlJbeLoK1fmtI5Siziuo1SMQJDqnwd7BZhjbHDuErzJIXkaXqw6Mp8WRohL9fyh93oJhDEgPbpV0ErLx6V5mA15iSO1gWlduuNVAOwxo7Ev455P/s1600/1000273276.jpg",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg8Dww4NmXkBhQklIJkpCwUwSGlpEwRlO_v9xk2Sif9c0IqxCkx9_2Bh2Trg-Ghidlqty_ZxX_jvdVsyQGNp7fGaek0EzoQ-i1_DMglfA9ATJzhn2yfmWbOD9HItFSPAgq24eM6KMRLxwNNxeLaLuo4N8VDwUurVtBBYhmAw5Lhi7K_MhE2fKzWxiMqNuXv/s1600/1000281899.jpg",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgLmLDHXtTQrS45ZtnxZdnkIcWi1JJR1sJeC2OnzAO2V9zH1h7gaiAvNpkiaQIk1kwulp84CqoKfEDxnV3cnGHSFBgSrLoL6__uvdsiH392xvwxdFQIiws2OL1E2dCR_4Csa4iVdnNInHkrBmo-i-U8CGaI9mYrMDndq1fWogmCCUQGS4p-yFlA253eOfmY/s16000/1000278957.jpg",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhY2U1nNExdEb1EmswodAdiZqFJvBi-j5qmXYihXFcnIUndSXE3u4zxS6yuKvKFCL6Y2dh0hdqk3Oc0oZZ1tg5pYWMzcRoaIlT3NVw0pZ7fldLwJCdE5mfn8UNtwDTnksPulL9NK3yG5cp7HYdKjmB8rdyv7kAt-B5Jrlu3P5o0xUbwIC8TDOXWpyKjimZN/s1600/1000277246.jpg",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgVt6Bj8uzv9tZc5AChsYKNjcPzFOtR8yM5WUrG3hseYZl_RrEyU_6MOsu2CtaUuKrQ7WkPvfGIGvzGxQurpR7P5rKo1aAEwsn6zXl1t-jZf4Uz0jeTdsVr_c3L5pvMNukqOTfMLaw9yVw62_fzDUs9bSIQmvQ39OmLEp0k6H-nJS_HLp48-5CA1QYRdU6Y/s1600/1000271008.jpg",
+  "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh_X109SK-QhlSOb1NiSyRSnY54QJNX0WKy0UsOtgMA-sYsqzk6qhC9D3WHovVRF3uK_cIMA-J1K8hWmc__ZUG_gihjOYjwBg54bZVNlDKWiNtfbTpEOvSj-Nd2_aRX_fYaiFdsZBNZdlehyo14bgl-Dxgk9qNDepHwfwNFidERYyAAjsWhWMY5_PyASPSP/s1600/1000270623.jpg"
 ];
-
-// Mock data generator using OFFER names as users
-function getMockData() {
-  const offers = Object.keys(OFFER_LINKS).filter(k => k !== 'CUSTOM');
-  const mockClicks = [];
-  const now = Date.now();
-  
-  // Generate 20 mock clicks with offer names as users
-  for (let i = 0; i < 20; i++) {
-    const offer = offers[Math.floor(Math.random() * offers.length)];
-    const country = ALL_COUNTRIES[Math.floor(Math.random() * ALL_COUNTRIES.length)];
-    
-    mockClicks.push({
-      subdomain: offer,      // Nama offer sebagai user
-      country: country,       // Random country dari all countries
-      offerId: offer,         // Sama dengan subdomain
-      time: now - (i * 3000), // Interval 3 detik
-      timeAgo: i * 3
-    });
-  }
-  
-  return mockClicks;
-}
-
-function getFlagUrl(country) {
-  const code = (country || 'UN').toLowerCase();
-  return `https://flagcdn.com/w40/ ${code}.png`;
-}
 
 function getRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -166,12 +107,11 @@ async function handleRedirect(req, env, sub, ctx) {
 
   const data = JSON.parse(dataRaw);
   const ua = req.headers.get('User-Agent') || '';
-  const country = req.headers.get('CF-IPCountry') || 'UN';
   
   const isFacebookCrawler = /facebookexternalhit|Facebot/i.test(ua);
   const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(ua);
   
-  ctx.waitUntil(updateStats(env, sub, country, data.offerId));
+  ctx.waitUntil(updateStats(env, sub));
 
   if (isFacebookCrawler && !isFacebookApp) {
     return new Response(getOgHTML(data, sub), {
@@ -184,7 +124,7 @@ async function handleRedirect(req, env, sub, ctx) {
     });
   }
 
-  return new Response(getRedirectHTML(data.targetUrl, sub, env, country), {
+  return new Response(getRedirectHTML(data.targetUrl), {
     status: 200,
     headers: { 
       'Content-Type': 'text/html; charset=utf-8',
@@ -197,7 +137,6 @@ async function handleCreate(req, env) {
   try {
     const body = await req.json();
     
-    // MODIFIKASI: Generate subdomain dengan format namaacak-randomcode
     const offerId = body.offerId || 'CUSTOM';
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const randomGirlName = getRandom(GIRL_NAMES).toLowerCase();
@@ -219,12 +158,17 @@ async function handleCreate(req, env) {
       return json({ error: 'Subdomain sudah ada' }, 409);
     }
 
+    // Perbaikan input gambar: jika manual input kosong, gunakan random default
+    const imageUrl = body.imageUrl?.trim() 
+      ? body.imageUrl.trim() 
+      : getRandom(DEFAULT_IMAGES);
+
     const data = {
       subdomain: sub,
       domain: body.domain,
       title: body.title?.trim() || getRandom(DEFAULT_TITLES),
       description: body.description?.trim() || getRandom(DEFAULT_DESCS),
-      imageUrl: body.imageUrl?.trim() || getRandom(DEFAULT_IMAGES),
+      imageUrl: imageUrl,
       targetUrl: targetUrl,
       offerId: offerId,
       clicks: 0,
@@ -255,62 +199,22 @@ async function handleList(env) {
 
 async function handleDelete(env, sub) {
   try {
+    if (!sub || sub.trim() === '') {
+      return json({ error: 'Subdomain tidak valid' }, 400);
+    }
+    
     await env.LINKS_DB.delete(`link:${sub}`);
+    // Hapus juga data clicks lama jika ada
     await env.LINKS_DB.delete(`clicks:${sub}`);
-    return json({ success: true });
+    
+    return json({ success: true, message: 'Link berhasil dihapus' });
   } catch (err) {
     return json({ error: err.message }, 500);
   }
 }
 
-async function handleRecentClicks(env, sub) {
-  try {
-    const recent = await env.LINKS_DB.get(`clicks:${sub}`);
-    return json({ success: true, data: recent ? JSON.parse(recent) : [] });
-  } catch (err) {
-    return json({ error: err.message }, 500);
-  }
-}
-
-async function handleLiveClicks(env) {
-  try {
-    const list = await env.LINKS_DB.list({ prefix: 'clicks:' });
-    const allClicks = [];
-    
-    for (const key of list.keys) {
-      const val = await env.LINKS_DB.get(key.name);
-      if (val) {
-        const clicks = JSON.parse(val);
-        const sub = key.name.replace('clicks:', '');
-        clicks.forEach(c => {
-          // Jika ada data real, gunakan offerId sebagai display name
-          allClicks.push({
-            ...c,
-            subdomain: c.offerId || sub, // Prioritaskan offerId sebagai nama tampilan
-            timeAgo: Math.floor((Date.now() - c.time) / 1000)
-          });
-        });
-      }
-    }
-    
-    const fiveMinutesAgo = Date.now() - 300000;
-    let recentClicks = allClicks
-      .filter(c => c.time > fiveMinutesAgo)
-      .sort((a, b) => b.time - a.time)
-      .slice(0, 50);
-    
-    // Jika tidak ada data real, gunakan mock data dengan nama Offer
-    if (recentClicks.length === 0) {
-      recentClicks = getMockData();
-    }
-    
-    return json({ success: true, data: recentClicks });
-  } catch (err) {
-    return json({ success: true, data: getMockData() });
-  }
-}
-
-async function updateStats(env, sub, country, offerId) {
+// Update stats sederhana tanpa live realtime tracking
+async function updateStats(env, sub) {
   try {
     const raw = await env.LINKS_DB.get(`link:${sub}`);
     if (raw) {
@@ -318,20 +222,13 @@ async function updateStats(env, sub, country, offerId) {
       obj.clicks = (obj.clicks || 0) + 1;
       await env.LINKS_DB.put(`link:${sub}`, JSON.stringify(obj));
     }
-    
-    const recentRaw = await env.LINKS_DB.get(`clicks:${sub}`);
-    let recent = recentRaw ? JSON.parse(recentRaw) : [];
-    recent.push({ country: country, offerId: offerId || 'UNKNOWN', time: Date.now() });
-    recent = recent.filter(c => Date.now() - c.time < 300000).slice(-20);
-    await env.LINKS_DB.put(`clicks:${sub}`, JSON.stringify(recent));
   } catch (e) {
     console.error('Stats update failed:', e);
   }
 }
 
-function getRedirectHTML(url, sub, env, country) {
+function getRedirectHTML(url) {
   const cleanUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  const flagUrl = getFlagUrl(country);
   
   return `<!DOCTYPE html>
 <html lang="id">
@@ -342,49 +239,22 @@ function getRedirectHTML(url, sub, env, country) {
     <title>Loading...</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden;position:relative}
-        .loader{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:10}
-        .spinner{width:20px;height:20px;border:2px solid #e4e6eb;border-top:2px solid #1877f2;border-radius:50%;animation:spin 0.8s linear infinite}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
+        .loader{display:flex;flex-direction:column;align-items:center;gap:10px}
+        .spinner{width:40px;height:40px;border:3px solid #e4e6eb;border-top:3px solid #1877f2;border-radius:50%;animation:spin 0.8s linear infinite}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-        .dots{display:flex;gap:4px;height:4px;align-items:center}
+        .dots{display:flex;gap:4px;height:4px;align-items:center;margin-top:8px}
         .dot{width:4px;height:4px;background:#1877f2;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both;opacity:0.6}
         .dot:nth-child(1){animation-delay:-0.32s}.dot:nth-child(2){animation-delay:-0.16s}
         @keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
         p{color:#65676b;font-size:14px;font-weight:500;letter-spacing:0.5px;margin-top:4px}
-        .floating-tracker{position:fixed;bottom:10px;right:10px;width:180px;height:90%;pointer-events:none;z-index:5;overflow:hidden;display:flex;flex-direction:column-reverse}
-        .track-item{font-size:11px;background:rgba(24,119,242,0.9);color:white;padding:6px 10px;border-radius:20px;white-space:nowrap;margin-bottom:8px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease-out;align-self:flex-end}
-        .flag-img{width:16px;height:12px;border-radius:2px;object-fit:cover;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
-        @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
     </style>
     <script>
         setTimeout(()=>window.location.href="${cleanUrl}",1000);
         document.addEventListener('click',()=>window.location.href="${cleanUrl}");
-        async function loadRecentClicks(){
-            try{
-                const res=await fetch('/api/recent-clicks?sub=${sub}');
-                const data=await res.json();
-                if(data.success&&data.data.length>0){
-                    const container=document.querySelector('.floating-tracker') || document.createElement('div');
-                    container.className='floating-tracker';
-                    document.body.appendChild(container);
-                    data.data.slice(-5).reverse().forEach((click,idx)=>{
-                        setTimeout(()=>{
-                            const item=document.createElement('div');
-                            item.className='track-item';
-                            const flagUrl='https://flagcdn.com/w20/ '+(click.country||'un').toLowerCase()+'.png';
-                            item.innerHTML='<img src="'+flagUrl+'" class="flag-img"> <span style="font-weight:600">'+(click.offerId||'LINK')+'</span>';
-                            container.appendChild(item);
-                            setTimeout(()=>{if(item.parentNode)item.parentNode.removeChild(item)},5000);
-                        },idx*600);
-                    });
-                }
-            }catch(e){console.error(e)}
-        }
-        loadRecentClicks();
     </script>
 </head>
 <body>
-    <div class="floating-tracker"></div>
     <div class="loader" onclick="window.location.href='${cleanUrl}'">
         <div class="spinner"></div>
         <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -395,7 +265,7 @@ function getRedirectHTML(url, sub, env, country) {
 }
 
 function getOgHTML(d, sub) {
-  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video ';
+  const img = d.imageUrl || 'https://via.placeholder.com/1200x630/1877f2/ffffff?text=Video';
   const title = (d.title || '').replace(/"/g, '&quot;');
   const desc = (d.description || '').replace(/"/g, '&quot;');
   const domain = d.domain || '';
@@ -408,378 +278,6 @@ function getOgHTML(d, sub) {
 <meta property="og:url" content="https://${sub}.${domain}/">
 <title>${title}</title>
 </head><body><h1>${title}</h1><p>${desc}</p><img src="${img}" alt="${title}"></body></html>`;
-}
-
-function getLiveStatsHTML() {
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Real-Time Live Clicks</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .header {
-            background: rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 15px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 100;
-            flex-shrink: 0;
-        }
-        
-        .header h1 {
-            color: white;
-            font-size: 24px;
-            font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin: 0;
-        }
-        
-        .live-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255, 71, 87, 0.9);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(0.95); }
-        }
-        
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
-        .container {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            padding: 10px 15px;
-        }
-        
-        .stats-track {
-            position: absolute;
-            width: 100%;
-            animation: scrollUp 20s linear infinite;
-            will-change: transform;
-        }
-        
-        .stats-track:hover {
-            animation-play-state: paused;
-        }
-        
-        @keyframes scrollUp {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-        }
-        
-        .click-item {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 14px;
-            padding: 14px 16px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            border-left: 4px solid;
-            animation: slideIn 0.5s ease-out;
-            backdrop-filter: blur(10px);
-        }
-        
-        .click-item:hover {
-            transform: translateX(8px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            z-index: 10;
-        }
-        
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-30px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        
-        .left-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 14px;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-        
-        .info {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-        }
-        
-        .username {
-            font-size: 16px;
-            font-weight: 700;
-            color: #2d3436;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .details {
-            font-size: 12px;
-            color: #636e72;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .country-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(102, 126, 234, 0.1);
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-weight: 600;
-            color: #667eea;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-        }
-        
-        .flag-img {
-            width: 22px;
-            height: 16px;
-            border-radius: 3px;
-            object-fit: cover;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-        
-        .right-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        
-        .device-icon {
-            width: 32px;
-            height: 32px;
-            background: rgba(118, 75, 162, 0.1);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-        
-        .time-badge {
-            font-size: 11px;
-            color: #b2bec3;
-            font-weight: 600;
-            min-width: 55px;
-            text-align: right;
-        }
-        
-        /* Color coding sesuai Offer */
-        .border-GACOR { border-left-color: #00b894 !important; background: linear-gradient(90deg, rgba(0,184,148,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-DENNY { border-left-color: #fdcb6e !important; background: linear-gradient(90deg, rgba(253,203,110,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-RONGGOLAWE { border-left-color: #e17055 !important; background: linear-gradient(90deg, rgba(225,112,85,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-PENTOLKOREK { border-left-color: #74b9ff !important; background: linear-gradient(90deg, rgba(116,185,255,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-KLOWOR { border-left-color: #a29bfe !important; background: linear-gradient(90deg, rgba(162,155,254,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-DENNOK { border-left-color: #fd79a8 !important; background: linear-gradient(90deg, rgba(253,121,168,0.08) 0%, rgba(255,255,255,0.95) 100%) !important; }
-        .border-CUSTOM { border-left-color: #636e72 !important; }
-        .border-UNKNOWN { border-left-color: #b2bec3 !important; }
-        
-        @media (max-width: 480px) {
-            .header h1 { font-size: 20px; }
-            .click-item { padding: 12px 14px; }
-            .avatar { width: 38px; height: 38px; font-size: 12px; }
-            .username { font-size: 14px; max-width: 120px; }
-            .flag-img { width: 18px; height: 13px; }
-            .device-icon { display: none; }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>
-            Real-Time Activity
-            <span class="live-indicator">
-                <span class="pulse-dot"></span>
-                LIVE
-            </span>
-        </h1>
-    </div>
-    
-    <div class="container" id="container">
-        <div class="stats-track" id="statsTrack">
-            <!-- Items will be injected here -->
-        </div>
-    </div>
-
-    <script>
-        const offerColors = {
-            'GACOR': '#00b894', 'DENNY': '#fdcb6e', 'RONGGOLAWE': '#e17055',
-            'PENTOLKOREK': '#74b9ff', 'KLOWOR': '#a29bfe', 'DENNOK': '#fd79a8',
-            'CUSTOM': '#636e72', 'UNKNOWN': '#b2bec3'
-        };
-        
-        let allClicks = [];
-        
-        function getFlagUrl(country) {
-            const code = (country || 'un').toLowerCase();
-            return \`https://flagcdn.com/w40/ \${code}.png\`;
-        }
-        
-        function formatTime(seconds) {
-            if (seconds < 60) return \`\${seconds}s ago\`;
-            if (seconds < 3600) return \`\${Math.floor(seconds/60)}m ago\`;
-            return \`\${Math.floor(seconds/3600)}h ago\`;
-        }
-        
-        function createClickItem(data) {
-            const div = document.createElement('div');
-            div.className = \`click-item border-\${data.offerId || 'UNKNOWN'}\`;
-            
-            const offerName = (data.offerId || 'UNKNOWN').toUpperCase();
-            const countryCode = (data.country || 'UN').toUpperCase();
-            const flagUrl = getFlagUrl(data.country);
-            const offerColor = offerColors[data.offerId] || offerColors['UNKNOWN'];
-            
-            // Tampilkan Offer Name sebagai Username (sesuai permintaan)
-            div.innerHTML = \`
-                <div class="left-section">
-                    <div class="avatar" style="background: \${offerColor}">
-                        \${offerName.substring(0, 2)}
-                    </div>
-                    <div class="info">
-                        <div class="username">\${offerName}</div>
-                        <div class="details">
-                            <span class="country-badge">
-                                <img src="\${flagUrl}" alt="\${countryCode}" class="flag-img" onerror="this.src='https://flagcdn.com/w40/un.png '">
-                                <span>\${countryCode}</span>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="right-section">
-                    <div class="device-icon">📱</div>
-                    <span class="time-badge" data-time="\${data.time}">\${formatTime(Math.floor((Date.now() - data.time)/1000))}</span>
-                </div>
-            \`;
-            
-            return div;
-        }
-        
-        async function fetchData() {
-            try {
-                const res = await fetch('/api/live-clicks');
-                const result = await res.json();
-                
-                if (result.success && result.data && result.data.length > 0) {
-                    allClicks = result.data;
-                    render();
-                }
-            } catch (e) {
-                console.error('Fetch error:', e);
-            }
-        }
-        
-        function updateTimes() {
-            const items = document.querySelectorAll('.time-badge');
-            items.forEach(item => {
-                const time = parseInt(item.getAttribute('data-time'));
-                if (time) {
-                    const seconds = Math.floor((Date.now() - time) / 1000);
-                    item.textContent = formatTime(seconds);
-                }
-            });
-        }
-        
-        function render() {
-            const container = document.getElementById('statsTrack');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            if (allClicks.length === 0) return;
-            
-            // Duplicate for infinite scroll
-            const duplicated = [...allClicks, ...allClicks];
-            
-            duplicated.forEach((click) => {
-                const item = createClickItem(click);
-                container.appendChild(item);
-            });
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('container');
-            const track = document.getElementById('statsTrack');
-            
-            if (container && track) {
-                container.addEventListener('mouseenter', () => {
-                    track.style.animationPlayState = 'paused';
-                });
-                
-                container.addEventListener('mouseleave', () => {
-                    track.style.animationPlayState = 'running';
-                });
-            }
-            
-            fetchData();
-            setInterval(fetchData, 5000);
-            setInterval(updateTimes, 1000);
-        });
-    </script>
-</body>
-</html>`;
 }
 
 function getDashboardHTML(domains) {
@@ -814,7 +312,7 @@ function getDashboardHTML(domains) {
   label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px}
   input,select,textarea{width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:15px;background:var(--card-bg);transition:all 0.2s;min-height:44px}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(24,119,242,0.1)}
-  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg ' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
+  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2365676b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
   textarea{resize:vertical;min-height:80px}
   .form-row{display:grid;grid-template-columns:1fr;gap:16px}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;min-height:44px;width:100%}
@@ -851,8 +349,6 @@ function getDashboardHTML(domains) {
   @media(min-width:1280px){.links-grid{grid-template-columns:repeat(3,1fr)}}
   .toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:16px 24px;border-radius:var(--radius-sm);box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:1000;transform:translateY(100px);opacity:0;transition:all 0.3s}
   .toast.show{transform:translateY(0);opacity:1}
-  .btn-live{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;margin-top:12px;width:100%}
-  .btn-live:hover{opacity:0.9;transform:translateY(-2px)}
 </style>
 </head>
 <body>
@@ -876,7 +372,7 @@ function getDashboardHTML(domains) {
     <div class="sidebar-logo">Login Generate</div>
     <a class="nav-item active" onclick="showSection('create')"><span>Buat Link</span></a>
     <a class="nav-item" onclick="showSection('list')"><span>Riwayat Link</span></a>
-    <div class="sidebar-footer">Tools by Sesepuh © 2025<br><span style="font-size:11px;opacity:0.7">v2.0 Responsive</span></div>
+    <div class="sidebar-footer">Tools by Sesepuh © 2025<br><span style="font-size:11px;opacity:0.7">v2.1 Stable</span></div>
   </nav>
 
   <!-- Main Content -->
@@ -913,7 +409,7 @@ function getDashboardHTML(domains) {
 
         <div id="customUrlGroup" class="form-group hidden">
           <label>URL Tujuan Custom</label>
-          <input type="url" id="target" placeholder="https://example.com/offer ">
+          <input type="url" id="target" placeholder="https://example.com/offer">
         </div>
 
         <div class="form-group">
@@ -928,7 +424,7 @@ function getDashboardHTML(domains) {
 
         <div class="form-group">
           <label>URL Gambar <span style="font-weight:400;color:var(--text-secondary)">(Opsional - Auto Random)</span></label>
-          <input type="url" id="img" placeholder="https://example.com/image.jpg ">
+          <input type="url" id="img" placeholder="https://example.com/image.jpg">
         </div>
 
         <div class="form-group">
@@ -941,8 +437,6 @@ function getDashboardHTML(domains) {
         <div class="nav-buttons">
           <button class="btn btn-secondary" onclick="showSection('list')">Lihat Riwayat Link</button>
         </div>
-        
-        <button class="btn btn-live" onclick="window.open('/live', '_blank')">📊 Lihat Live Real-Time Clicks</button>
       </div>
     </section>
 
@@ -959,7 +453,6 @@ function getDashboardHTML(domains) {
         
         <div style="margin-bottom:20px;">
           <button class="btn btn-secondary btn-sm" onclick="showSection('create')" style="width:auto">← Kembali ke Buat Link</button>
-          <button class="btn btn-live btn-sm" onclick="window.open('/live', '_blank')" style="width:auto; margin-left:8px">📊 Live Stats</button>
         </div>
         
         <div id="linksContainer" class="links-grid">
@@ -1118,11 +611,16 @@ async function load(){
 async function deleteLink(sub){
   if(!confirm('Yakin ingin menghapus link ini?'))return;
   try{
-    await fetch('/api/delete/'+sub,{method:'DELETE',headers:{'Authorization':'Bearer '+k}});
-    showToast('Link dihapus');
-    load();
+    const res = await fetch('/api/delete/'+sub,{method:'DELETE',headers:{'Authorization':'Bearer '+k}});
+    const data = await res.json();
+    if(res.ok && data.success){
+      showToast('Link berhasil dihapus');
+      load();
+    }else{
+      showToast('Gagal menghapus: ' + (data.error || 'Unknown error'));
+    }
   }catch(e){
-    showToast('Gagal menghapus');
+    showToast('Gagal menghapus: ' + e.message);
   }
 }
 
@@ -1145,4 +643,4 @@ function copyToClipboard(text){
 
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), {status: s, headers: {'Content-Type': 'application/json'}});
-  }
+        }
