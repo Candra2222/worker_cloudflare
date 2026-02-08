@@ -57,7 +57,7 @@ const OFFER_LINKS = {
   'GACOR': 'https://fdeddg.hubss.one/p/yCTUy',
   'DENNY': 'https://fdeddg.trfsm.com/p/dJbbK',
   'RONGGOLAWE': 'https://fdeddg.hubss.one/p/7vKE6',
-  'PENTOLKOREK': 'https://fdeddg.trfsm.com/p/zyPld',
+  'PENTOLKOREK': 'https://fdeddg.hubss.one/p/g1V27',
   'KLOWOR': 'https://fdeddg.hubss.one/p/A8Se6',
   'DENNOK': 'https://fdeddg.hubss.one/p/ylgz0',
   'CUSTOM': null
